@@ -4,7 +4,7 @@
 #   make
 #
 # Windows cross compile:
-#   i686-w64-mingw32-gcc -std=gnu99 -Wall -Wextra -Wpedantic -O2 -o mcrcon.exe mcrcon.c -lws2_32
+#   x86_64-w64-mingw32-gcc -std=gnu99 -Wall -Wextra -Wpedantic -O2 -fstack-protector-all -o mcrcon.exe mcrcon.c -lws2_32
 
 EXENAME = mcrcon
 PREFIX ?= /usr/local
@@ -23,11 +23,6 @@ ifeq ($(OS), Windows_NT)
 	RM = cmd /C del /F
 endif
 
-ifeq ($(shell uname), Darwin)
-	INSTALL = ginstall
-	CFLAGS = -std=gnu99 -Wall -Wextra -Wpedantic -O2
-endif
-
 .PHONY: all
 all: $(EXENAME)
 
@@ -37,8 +32,8 @@ $(EXENAME): mcrcon.c
 ifneq ($(OS), Windows_NT)
 .PHONY: install
 install:
-	$(INSTALL) -vD $(EXENAME) $(DESTDIR)$(PREFIX)/bin/$(EXENAME)
-	$(INSTALL) -vD -m 0644 mcrcon.1 $(DESTDIR)$(PREFIX)/share/man/man1/mcrcon.1
+	$(INSTALL) -v $(EXENAME) $(DESTDIR)$(PREFIX)/bin/$(EXENAME)
+	$(INSTALL) -v -m 0644 mcrcon.1 $(DESTDIR)$(PREFIX)/share/man/man1/mcrcon.1
 	@echo "\nmcrcon installed. Run 'make uninstall' if you want to uninstall.\n"
 
 .PHONY: uninstall

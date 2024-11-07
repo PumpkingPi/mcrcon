@@ -1,5 +1,5 @@
 Building and installing
-------------------------
+-----------------------
 
 Only dependency is C library and POSIX getopt support. 
 
