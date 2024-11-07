@@ -209,7 +209,7 @@ int main(int argc, char *argv[])
 
 	if (pass == NULL) {
 		puts("You must give password (-p password).\nTry 'mcrcon -h' or 'man mcrcon' for help.");
-		return 0;
+		exit(EXIT_FAILURE);
 	}
 
 	if(optind == argc && terminal_mode == 0)
