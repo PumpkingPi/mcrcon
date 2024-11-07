@@ -5,7 +5,7 @@ Only dependency is C library and POSIX getopt support.
 
 Compiling with GCC or CLANG:
 
-    cc -std=gnu99 -Wpedantic -Wall -Wextra -Os -s -o mcrcon mcrcon.c
+    cc -std=gnu99 -Wpedantic -Wall -Wextra -O2 -o mcrcon mcrcon.c
     
 Note: on Windows remember to link with winsock by adding `-lws2_32` to your compiler command line.
 

@@ -4,7 +4,7 @@
 #   make
 #
 # Windows cross compile:
-#   i686-w64-mingw32-gcc -std=gnu99 -Wall -Wextra -Wpedantic -Os -s -o mcrcon.exe mcrcon.c -lws2_32
+#   i686-w64-mingw32-gcc -std=gnu99 -Wall -Wextra -Wpedantic -O2 -o mcrcon.exe mcrcon.c -lws2_32
 
 EXENAME = mcrcon
 PREFIX ?= /usr/local
@@ -14,8 +14,8 @@ LINKER =
 RM = rm -v -f
 
 CC = gcc
-CFLAGS = -std=gnu99 -Wall -Wextra -Wpedantic -Os -s
-EXTRAFLAGS ?= -fstack-protector-strong
+CFLAGS = -std=gnu99 -Wall -Wextra -Wpedantic -O2
+EXTRAFLAGS ?= -fstack-protector-all
 
 ifeq ($(OS), Windows_NT)
 	LINKER = -lws2_32
@@ -25,7 +25,7 @@ endif
 
 ifeq ($(shell uname), Darwin)
 	INSTALL = ginstall
-	CFLAGS = -std=gnu99 -Wall -Wextra -Wpedantic -Os
+	CFLAGS = -std=gnu99 -Wall -Wextra -Wpedantic -O2
 endif
 
 .PHONY: all
