@@ -1,5 +1,8 @@
 #### Version history:
 
+###### 0.7.3
+ - Add support to Valve style rcon authentication
+ 
 ###### 0.7.2
  - Quit gracefully when Ctrl-D or Ctrl+C is pressed
  - Remove "exit" and "quit" as quitting commands

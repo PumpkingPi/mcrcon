@@ -47,7 +47,7 @@
     #include <netdb.h>
 #endif
 
-#define VERSION "0.7.2"
+#define VERSION "0.7.3"
 #define IN_NAME "mcrcon"
 #define VER_STR IN_NAME" "VERSION" (built: "__DATE__" "__TIME__")"
 
@@ -595,9 +595,17 @@ int rcon_auth(int sock, char *passwd)
 	if (!ret)
 		return 0; // send failed
 
+receive:
 	packet = net_recv_packet(sock);
 	if (packet == NULL)
 		return 0;
+
+	/* Valve rcon sends empty "RCON_RESPONSEVALUE" packet before real auth response
+	 * so we have to check packet type and try again if necessary.
+	 */
+	if (packet->cmd != RCON_AUTH_RESPONSE) {
+		goto receive;
+	}
 
 	// return 1 if authentication OK
 	return packet->id == -1 ? 0 : 1;
