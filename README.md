@@ -6,24 +6,30 @@ mcrcon is console based Minecraft [rcon](https://developer.valvesoftware.com/wik
 
 ### Installing:
 
-##### via packet manager:
-See https://pkgs.org/download/mcrcon for available packages in various Linux distros (note that available packages might be outdated).
+##### via package manager:
+See https://pkgs.org/download/mcrcon and https://repology.org/project/mcrcon/packages for available packages in various Linux distros (note that some packages might be outdated).
 
-- Gentoo Linux: https://packages.gentoo.org/packages/games-util/mcrcon
-- Arch Linux: https://aur.archlinux.org/packages/mcrcon/
+- Fedora: https://packages.fedoraproject.org/pkgs/mcrcon/mcrcon/
+- Gentoo: https://packages.gentoo.org/packages/games-util/mcrcon
+- Arch: https://aur.archlinux.org/packages/mcrcon/
+- NixOS: https://search.nixos.org/packages?show=mcrcon
+- Snapcraft: https://snapcraft.io/mcrcon-nsg
+- Scoop: https://scoop.sh/#/apps?q=mcrcon
 
 ##### building from sources:
 ```sh
 git clone https://github.com/Tiiffi/mcrcon.git
 cd mcrcon
 make
+
+# install is optional
 sudo make install
 ```
 Check [INSTALL.md](INSTALL.md) for more details.
 
-Precompiled binaries (if provided)*: https://github.com/Tiiffi/mcrcon/releases/latest
+Precompiled binaries*: https://github.com/Tiiffi/mcrcon/releases/latest
 
-<sub>*At the moment binaries are provided for Linux and Windows.</sub>
+<sub>*Binaries are provided for Linux and Windows.</sub>
 
 ---
 
@@ -86,6 +92,3 @@ rcon.password=your_rcon_pasword
 This project is licensed under the zlib License - see the [LICENSE](LICENSE) file for details.
 
 ---
-
-<sub>Master:</sub> ![Master build](https://api.travis-ci.org/Tiiffi/mcrcon.svg?branch=master)
-<sub>Develop:</sub> ![Develop build](https://api.travis-ci.org/Tiiffi/mcrcon.svg?branch=develop)
