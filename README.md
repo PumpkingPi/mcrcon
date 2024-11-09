@@ -63,8 +63,11 @@ MCRCON_PASS
 - Rcon commands with spaces must be enclosed in quotes
 
 ###### Example:
-Send three commands ("say", "save-all", "stop") and wait five seconds between the commands.
-```mcrcon -H my.minecraft.server -p password -w 5 "say Server is restarting!" save-all stop```
+Send three commands ("say", "save-all", "stop") and wait five seconds between the commands:
+
+```sh
+mcrcon -H my.minecraft.server -p password -w 5 "say Server is restarting!" save-all stop
+```
 
 ---
 
