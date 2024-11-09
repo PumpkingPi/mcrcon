@@ -6,7 +6,11 @@ mcrcon is console based Minecraft [rcon](https://developer.valvesoftware.com/wik
 
 ### Installing:
 
-##### via package manager:
+##### Binary releases
+
+Pre-built binaries are provided for Linux and Windows: https://github.com/Tiiffi/mcrcon/releases/latest
+
+##### Via package manager
 See https://pkgs.org/download/mcrcon and https://repology.org/project/mcrcon/packages for available packages in various Linux distros (note that some packages might be outdated).
 
 - Fedora: https://packages.fedoraproject.org/pkgs/mcrcon/mcrcon/
@@ -16,7 +20,7 @@ See https://pkgs.org/download/mcrcon and https://repology.org/project/mcrcon/pac
 - Snapcraft: https://snapcraft.io/mcrcon-nsg
 - Scoop: https://scoop.sh/#/apps?q=mcrcon
 
-##### building from sources:
+##### Building from sources
 ```sh
 git clone https://github.com/Tiiffi/mcrcon.git
 cd mcrcon
@@ -26,10 +30,6 @@ make
 sudo make install
 ```
 Check [INSTALL.md](INSTALL.md) for more details.
-
-Precompiled binaries*: https://github.com/Tiiffi/mcrcon/releases/latest
-
-<sub>*Binaries are provided for Linux and Windows.</sub>
 
 ---
 
@@ -62,15 +62,16 @@ MCRCON_PASS
 - Command-line options will override environment variables
 - Rcon commands with spaces must be enclosed in quotes
 
-Example:
+###### Example:
 > Send three commands ("say", "save-all", "stop") and wait five seconds between the commands.
 
   ```mcrcon -H my.minecraft.server -p password -w 5 "say Server is restarting!" save-all stop```
 
 ---
 
-##### Enable rcon on server
-Remember to enable rcon by adding following lines to [```server.properties```](https://minecraft.gamepedia.com/Server.properties) file.
+##### How to Configure rcon on a Minecraft Server 
+
+Enable rcon by adding following lines to [```server.properties```](https://minecraft.gamepedia.com/Server.properties) configuration file.
 ```
 enable-rcon=true
 rcon.port=25575
@@ -79,16 +80,27 @@ rcon.password=your_rcon_pasword
 
 ---
 
-##### Contact:
+### Contact:
 
 * WWW:            https://github.com/Tiiffi/mcrcon/
 * MAIL:           tiiffi+mcrcon at gmail
-* BUG REPORTS:    https://github.com/Tiiffi/mcrcon/issues/
+* ISSUES:         https://github.com/Tiiffi/mcrcon/issues/
+
+##### Reporting issues:
+
+When reporting issues, please provide the following information:
+
+- Version of mcrcon: Please specify the precise version number
+- Game: Indicate the specific game server you're using (e.g., Minecraft, Valve Source Engine game, ARK, ...)
+- Server version: Provide the exact version of the game server
+- Mods and Extensions: List all mods and extensions used, including their versions
+- Issue Description: Clearly describe the problem you're encountering and the expected behavior.
+- Steps to reproduce
+
+If you're tech-savvy, consider providing a packet capture file (PCAP). Remember to use a fake password.
 
 ---
 
 ### License
 
 This project is licensed under the zlib License - see the [LICENSE](LICENSE) file for details.
-
----
