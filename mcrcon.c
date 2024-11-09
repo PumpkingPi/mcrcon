@@ -57,7 +57,9 @@
 #define RCON_AUTH_RESPONSE      2
 #define RCON_PID                0xBADC0DE
 
-#define DATA_BUFFSIZE 4096
+#define DATA_BUFFSIZE   4096
+#define MAX_PACKET_SIZE 4106
+#define MIN_PACKET_SIZE 10
 
 // rcon packet structure
 typedef struct _rc_packet {
@@ -434,10 +436,11 @@ rc_packet *net_recv_packet(int sd)
 	}
 
 	// NOTE(Tiiffi): This should fail if size is out of spec!
-	if (psize < 10 || psize > DATA_BUFFSIZE) {
-		fprintf(stderr, "Warning: invalid packet size (%d). Must over 10 and less than %d.\n", psize, DATA_BUFFSIZE);
+	if (psize < MIN_PACKET_SIZE || psize > MAX_PACKET_SIZE) {
+		fprintf(stderr, "Warning: invalid packet size (%d). Must over 10 and less than %d.\n", psize, MAX_PACKET_SIZE);
 
-		if(psize > DATA_BUFFSIZE  || psize < 0) psize = DATA_BUFFSIZE;
+		// WARNING(Tiiffi): This is probably not the way to go. Probably should just fail and exit.
+		if(psize > MAX_PACKET_SIZE || psize < 0) psize = MAX_PACKET_SIZE;
 		net_clean_incoming(sd, psize);
 
 		return NULL;
@@ -448,7 +451,7 @@ rc_packet *net_recv_packet(int sd)
 	int received = 0;
 	while (received < psize) {
 		ret = recv(sd, (char *) &packet + sizeof(int) + received, psize - received, 0);
-		if (ret == 0) { /* connection closed before completing receving */
+		if (ret == 0) {
 			fprintf(stderr, "Connection lost.\n");
 			global_connection_alive = 0;
 			return NULL;
@@ -568,6 +571,11 @@ rc_packet *packet_build(int id, int cmd, char *s1)
 {
 	static rc_packet packet = {0, 0, 0, { 0x00 }};
 
+	// NOTE(Tiiffi): Issue report states that outgoing payload has max size of 1460 bytes:
+	//				 https://github.com/Tiiffi/mcrcon/issues/45#issuecomment-1000940814
+	//				 https://mctools.readthedocs.io/en/master/rcon.html
+	//				 Have to do some testing to confirm!
+
 	// size + id + cmd + s1 + s2 NULL terminator
 	int len = strlen(s1);
 	if (len >= DATA_BUFFSIZE) {
@@ -661,7 +669,7 @@ int run_commands(int argc, char *argv[])
 int run_terminal_mode(int sock)
 {
 	int ret = 0;
-	char command[DATA_BUFFSIZE] = {0x00};
+	char command[DATA_BUFFSIZE] = {0};
 
 	puts("Logged in.\nType 'Q' or press Ctrl-D / Ctrl-C to disconnect.");
 
