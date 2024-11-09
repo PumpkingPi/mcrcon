@@ -4,7 +4,7 @@ mcrcon is console based Minecraft [rcon](https://developer.valvesoftware.com/wik
 
 ---
 
-### Installing:
+### Installing
 
 ##### Binary releases
 
@@ -33,7 +33,7 @@ Check [INSTALL.md](INSTALL.md) for more details.
 
 ---
 
-### Usage:
+### Usage
 mcrcon [OPTIONS] [COMMANDS]
 
 Sends rcon commands to Minecraft server.
@@ -63,13 +63,12 @@ MCRCON_PASS
 - Rcon commands with spaces must be enclosed in quotes
 
 ###### Example:
-> Send three commands ("say", "save-all", "stop") and wait five seconds between the commands.
-
-  ```mcrcon -H my.minecraft.server -p password -w 5 "say Server is restarting!" save-all stop```
+Send three commands ("say", "save-all", "stop") and wait five seconds between the commands.
+```mcrcon -H my.minecraft.server -p password -w 5 "say Server is restarting!" save-all stop```
 
 ---
 
-##### How to Configure rcon on a Minecraft Server 
+##### How to enable rcon on a Minecraft Server 
 
 Enable rcon by adding following lines to [```server.properties```](https://minecraft.gamepedia.com/Server.properties) configuration file.
 ```
@@ -80,13 +79,11 @@ rcon.password=your_rcon_pasword
 
 ---
 
-### Contact:
+### Contact
 
 * WWW:            https://github.com/Tiiffi/mcrcon/
 * MAIL:           tiiffi+mcrcon at gmail
 * ISSUES:         https://github.com/Tiiffi/mcrcon/issues/
-
-##### Reporting issues:
 
 When reporting issues, please provide the following information:
 
