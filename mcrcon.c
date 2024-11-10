@@ -63,9 +63,9 @@
 
 // rcon packet structure
 typedef struct _rc_packet {
-    int size;
-    int id;
-    int cmd;
+    int32_t size;
+    int32_t id;
+    int32_t cmd;
     char data[DATA_BUFFSIZE];
     // ignoring string2 for now
 } rc_packet;
@@ -402,7 +402,7 @@ int net_send_packet(int sd, rc_packet *packet)
 	int bytesleft;	// bytes left to send 
 	int ret = -1;
 
-	bytesleft = len = packet->size + sizeof(int);
+	bytesleft = len = packet->size + sizeof(int32_t);
 
 	while (total < len) {
 		ret = send(sd, (char *) packet + total, bytesleft, 0);
@@ -416,12 +416,12 @@ int net_send_packet(int sd, rc_packet *packet)
 
 rc_packet *net_recv_packet(int sd)
 {
-	int psize;
+	int32_t psize;
 	static rc_packet packet = {0, 0, 0, { 0x00 }};
 
 	// packet.size = packet.id = packet.cmd = 0;
 
-	int ret = recv(sd, (char *) &psize, sizeof(int), 0);
+	int ret = recv(sd, (char *) &psize, sizeof(psize), 0);
 
 	if (ret == 0) {
 		fprintf(stderr, "Connection lost.\n");
@@ -429,7 +429,7 @@ rc_packet *net_recv_packet(int sd)
 		return NULL;
 	}
 
-	if (ret != sizeof(int)) {
+	if (ret != sizeof(psize)) {
 		fprintf(stderr, "Error: recv() failed. Invalid packet size (%d).\n", ret);
 		global_connection_alive = 0;
 		return NULL;
@@ -450,7 +450,7 @@ rc_packet *net_recv_packet(int sd)
 
 	int received = 0;
 	while (received < psize) {
-		ret = recv(sd, (char *) &packet + sizeof(int) + received, psize - received, 0);
+		ret = recv(sd, (char *) &packet + sizeof(int32_t) + received, psize - received, 0);
 		if (ret == 0) {
 			fprintf(stderr, "Connection lost.\n");
 			global_connection_alive = 0;
@@ -583,7 +583,7 @@ rc_packet *packet_build(int id, int cmd, char *s1)
 		return NULL;
 	}
 
-	packet.size = sizeof(int) * 2 + len + 2;
+	packet.size = sizeof packet.size * 2 + len + 2;
 	packet.id = id;
 	packet.cmd = cmd;
 	strncpy(packet.data, s1, DATA_BUFFSIZE - 1);
