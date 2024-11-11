@@ -68,7 +68,7 @@
 // rcon packet structure,
 // NOTE(Tiiffi): Alignment problem!
 typedef struct _rc_packet {
-    //int32_t size;
+    int32_t size;
     int32_t id;
     int32_t cmd;
     char data[DATA_BUFFSIZE];
