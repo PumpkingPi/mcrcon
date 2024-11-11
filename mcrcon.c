@@ -57,19 +57,46 @@
 #define RCON_AUTH_RESPONSE      2
 #define RCON_PID                0xBADC0DE
 
-#define DATA_BUFFSIZE   4096
+/* NOTE: This is confusing. What is the real max packet size?
+ *       Are null bytes included? Are both null bytes included?
+ *       Perhaps payload end indicator is uin16_t with zero value?
+ */
+#define DATA_BUFFSIZE   4098 // 2 bytes extra over 4096
 #define MAX_PACKET_SIZE 4106
 #define MIN_PACKET_SIZE 10
 
-// rcon packet structure
+// rcon packet structure,
+// NOTE(Tiiffi): Alignment problem!
 typedef struct _rc_packet {
-    int32_t size;
+    //int32_t size;
     int32_t id;
     int32_t cmd;
     char data[DATA_BUFFSIZE];
     // ignoring string2 for now
 } rc_packet;
+// __attribute__((packed))
 
+/* TODO(Tiiffi):
+ *
+ *  Correct packet structure is propably something like this:
+ *
+ *  +---------------------------+
+ *  | Size (4 bytes, int)       |  Total packet size (excluding this field)
+ *  +---------------------------+
+ *  | ID (4 bytes, int)         |
+ *  +---------------------------+
+ *  | Type (4 bytes, int)       |
+ *  +---------------------------+
+ *  | Payload (variable length) |  Command or response string (up to 4096 bytes)
+ *  | (null-terminated string)  |
+ *  +---------------------------+
+ *  | Null Terminator (2 bytes, |  16-bit integer set to zero (0x0000)
+ *  | 16-bit int)               |  Could be also interpreted as two null bytes
+ *  +---------------------------+
+ *
+ *  Maximum size 4110 including size field, 4106 excluding size field.
+ *  Take care with the aligment!
+ */
 
 // ===================================
 //  FUNCTION DEFINITIONS              
