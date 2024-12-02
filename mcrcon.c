@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2021, Tiiffi <tiiffi at gmail>
+ * Copyright (c) 2012-2024, Tiiffi <tiiffi at gmail>
  *
  * This software is provided 'as-is', without any express or implied
  * warranty. In no event will the authors be held liable for any damages
@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 #include <strings.h>
 #include <signal.h>
@@ -32,13 +33,9 @@
 #include <limits.h>
 
 #ifdef _WIN32
-    // for name resolving on windows
-    // enable this if you get compiler whine about getaddrinfo() on windows
-    //#define _WIN32_WINNT 0x0501
-
-    #include <ws2tcpip.h>
-    #include <winsock2.h>
+	#include <winsock2.h>
     #include <windows.h>
+    #include <ws2tcpip.h>
 #else
     #include <sys/types.h>
     #include <sys/socket.h>
@@ -57,46 +54,19 @@
 #define RCON_AUTH_RESPONSE      2
 #define RCON_PID                0xBADC0DE
 
-/* NOTE: This is confusing. What is the real max packet size?
- *       Are null bytes included? Are both null bytes included?
- *       Perhaps payload end indicator is uin16_t with zero value?
- */
-#define DATA_BUFFSIZE   4098 // 2 bytes extra over 4096
-#define MAX_PACKET_SIZE 4106
-#define MIN_PACKET_SIZE 10
+#define MAX_COMMAND_LENGTH 	4096
+#define DATA_BUFFSIZE		MAX_COMMAND_LENGTH + 2 // plus two null terminators
+#define MAX_PACKET_SIZE		4106 // id (4) + cmd (4) + DATA_BUFFSIZE
+#define MIN_PACKET_SIZE		10   // id (4) + cmd (4) + two empty strings (2)
 
-// rcon packet structure,
-// NOTE(Tiiffi): Alignment problem!
-typedef struct _rc_packet {
+// rcon packet structure
+typedef struct {
     int32_t size;
     int32_t id;
     int32_t cmd;
-    char data[DATA_BUFFSIZE];
+    uint8_t data[DATA_BUFFSIZE];
     // ignoring string2 for now
 } rc_packet;
-// __attribute__((packed))
-
-/* TODO(Tiiffi):
- *
- *  Correct packet structure is propably something like this:
- *
- *  +---------------------------+
- *  | Size (4 bytes, int)       |  Total packet size (excluding this field)
- *  +---------------------------+
- *  | ID (4 bytes, int)         |
- *  +---------------------------+
- *  | Type (4 bytes, int)       |
- *  +---------------------------+
- *  | Payload (variable length) |  Command or response string (up to 4096 bytes)
- *  | (null-terminated string)  |
- *  +---------------------------+
- *  | Null Terminator (2 bytes, |  16-bit integer set to zero (0x0000)
- *  | 16-bit int)               |  Could be also interpreted as two null bytes
- *  +---------------------------+
- *
- *  Maximum size 4110 including size field, 4106 excluding size field.
- *  Take care with the aligment!
- */
 
 // ===================================
 //  FUNCTION DEFINITIONS              
@@ -108,10 +78,8 @@ void        net_init_WSA(void);
 #endif
 void        net_close(int sd);
 int         net_connect(const char *host, const char *port);
-int         net_send(int sd, const uint8_t *buffer, size_t size);
-int         net_send_packet(int sd, rc_packet *packet);
+bool        net_send_packet(int sd, rc_packet *packet);
 rc_packet*  net_recv_packet(int sd);
-int         net_clean_incoming(int sd, int size);
 
 // Misc stuff
 void        usage(void);
@@ -125,7 +93,7 @@ int         run_commands(int argc, char *argv[]);
 // Rcon protocol related functions
 rc_packet*  packet_build(int id, int cmd, char *s1);
 void        packet_print(rc_packet *packet);
-int         rcon_auth(int sock, char *passwd);
+bool        rcon_auth(int sock, char *passwd);
 int         rcon_command(int sock, char *command);
 
 
@@ -151,7 +119,7 @@ void exit_proc(void)
 		net_close(global_rsock);
 }
 
-// Check windows & linux behaviour !!!
+// TODO: check exact windows and linux behaviour
 void sighandler(int sig)
 {
 	if (sig == SIGINT)
@@ -241,8 +209,9 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	if(optind == argc && terminal_mode == 0)
+	if(optind == argc && terminal_mode == 0) {
 		terminal_mode = 1;
+	}
 
 	// safety features to prevent "IO: Connection reset" bug on the server side
 	atexit(&exit_proc);
@@ -264,13 +233,11 @@ int main(int argc, char *argv[])
 
 	// auth & commands
 	if (rcon_auth(global_rsock, pass)) {
-		if (terminal_mode)
-			run_terminal_mode(global_rsock);
-		else
-			exit_code = run_commands(argc, argv);
+		if (terminal_mode) run_terminal_mode(global_rsock);
+		else exit_code = run_commands(argc, argv);
 	}
 	else { // auth failed
-		fprintf(stdout, "Authentication failed!\n");
+		fprintf(stderr, "Authentication failed!\n");
 		exit_code = EXIT_FAILURE;
 	}
 
@@ -342,7 +309,6 @@ void net_close(int sd)
 	#endif
 }
 
-// Opens and connects socket
 // http://man7.org/linux/man-pages/man3/getaddrinfo.3.html
 // https://bugs.chromium.org/p/chromium/issues/detail?id=44489
 int net_connect(const char *host, const char *port)
@@ -404,51 +370,32 @@ int net_connect(const char *host, const char *port)
 	return sd;
 }
 
-int net_send(int sd, const uint8_t *buff, size_t size)
+bool net_send_packet(int sd, rc_packet *packet)
 {
 	size_t sent = 0;
+	size_t size = packet->size + sizeof(int32_t);
 	size_t left = size;
 
-	while (sent < size) {
-		int result = send(sd, (const char *) buff + sent, left, 0);
+	char *p = (char *) packet;
 
-		if (result == -1)
-			return -1;
+	while (sent < size) {
+		ssize_t result = send(sd, p + sent, left, 0);
+
+		if (result == -1) return false;
 
 		sent += result;
 		left -= sent;
 	}
 
-	return 0;
-}
-
-int net_send_packet(int sd, rc_packet *packet)
-{
-	int len;
-	int total = 0;	// bytes we've sent
-	int bytesleft;	// bytes left to send 
-	int ret = -1;
-
-	bytesleft = len = packet->size + sizeof(int32_t);
-
-	while (total < len) {
-		ret = send(sd, (char *) packet + total, bytesleft, 0);
-		if(ret == -1) break;
-		total += ret;
-		bytesleft -= ret;
-	}
-
-	return ret == -1 ? -1 : 1;
+	return true;
 }
 
 rc_packet *net_recv_packet(int sd)
 {
 	int32_t psize;
-	static rc_packet packet = {0, 0, 0, { 0x00 }};
+	static rc_packet packet = {0};
 
-	// packet.size = packet.id = packet.cmd = 0;
-
-	int ret = recv(sd, (char *) &psize, sizeof(psize), 0);
+	ssize_t ret = recv(sd, (char *) &psize, sizeof(psize), 0);
 
 	if (ret == 0) {
 		fprintf(stderr, "Connection lost.\n");
@@ -457,27 +404,23 @@ rc_packet *net_recv_packet(int sd)
 	}
 
 	if (ret != sizeof(psize)) {
-		fprintf(stderr, "Error: recv() failed. Invalid packet size (%d).\n", ret);
+		fprintf(stderr, "Error: recv() failed.\n");
 		global_connection_alive = 0;
 		return NULL;
 	}
 
-	// NOTE(Tiiffi): This should fail if size is out of spec!
 	if (psize < MIN_PACKET_SIZE || psize > MAX_PACKET_SIZE) {
-		fprintf(stderr, "Warning: invalid packet size (%d). Must over 10 and less than %d.\n", psize, MAX_PACKET_SIZE);
-
-		// WARNING(Tiiffi): This is probably not the way to go. Probably should just fail and exit.
-		if(psize > MAX_PACKET_SIZE || psize < 0) psize = MAX_PACKET_SIZE;
-		net_clean_incoming(sd, psize);
-
+		fprintf(stderr, "Error: Invalid packet size (%d).\n", psize);
+		global_connection_alive = 0;
 		return NULL;
 	}
 
 	packet.size = psize;
+	char *p = (char *) &packet;
 
 	int received = 0;
 	while (received < psize) {
-		ret = recv(sd, (char *) &packet + sizeof(int32_t) + received, psize - received, 0);
+		ret = recv(sd, p + sizeof(int32_t) + received, psize - received, 0);
 		if (ret == 0) {
 			fprintf(stderr, "Connection lost.\n");
 			global_connection_alive = 0;
@@ -488,19 +431,6 @@ rc_packet *net_recv_packet(int sd)
 	}
 
 	return &packet;
-}
-
-int net_clean_incoming(int sd, int size)
-{
-	char tmp[size];
-	int ret = recv(sd, tmp, size, 0);
-
-	if(ret == 0) {
-		fprintf(stderr, "Connection lost.\n");
-		global_connection_alive = 0;
-	}
-
-	return ret;
 }
 
 void print_color(int color)
@@ -527,8 +457,9 @@ void print_color(int color)
 		"\033[4m"       /* 16 UNDERLINE 0x6e */
 	};
 
-	/* 0x72: 'r' */
-	if (color == 0 || color == 0x72) fputs("\033[0m", stdout); /* CANCEL COLOR */
+	if (color == 0 || color == 0x72) {
+		fputs("\033[0m", stdout); // cancel color
+	}
 	else
 	#endif
 	{
@@ -536,7 +467,7 @@ void print_color(int color)
 		else if (color >= 0x30 && color <= 0x39)
 			color -= 0x30;
 		else if (color == 0x6e)
-			color = 16; /* 0x6e: 'n' */
+			color = 16;
 		else return;
 
 		#ifndef _WIN32
@@ -550,85 +481,89 @@ void print_color(int color)
 // this hacky mess might use some optimizing
 void packet_print(rc_packet *packet)
 {
-	if (global_raw_output == 1) {
-		for (int i = 0; packet->data[i] != 0; ++i)
-			putchar(packet->data[i]);
+	uint8_t *data = packet->data;
 
+	if (global_raw_output == 1) {
+		for (int i = 0; data[i] != 0; ++i) {
+			putchar(data[i]);
+		}
 		return;
 	}
 
 	int i;
-	int def_color = 0;
+	int default_color = 0;
 
 	#ifdef _WIN32
 		CONSOLE_SCREEN_BUFFER_INFO console_info;
 		if (GetConsoleScreenBufferInfo(console_handle, &console_info) != 0) {
-			def_color = console_info.wAttributes + 0x30;
-		} else def_color = 0x37;
+			default_color = console_info.wAttributes + 0x30;
+		} else default_color = 0x37;
 	#endif
 
 	// colors enabled so try to handle the bukkit colors for terminal
 	if (global_disable_colors == 0) {
-		for (i = 0; (unsigned char) packet->data[i] != 0; ++i) {
-			if (packet->data[i] == 0x0A) print_color(def_color);
-			else if((unsigned char) packet->data[i] == 0xc2 && (unsigned char) packet->data[i+1] == 0xa7) {
-				print_color(packet->data[i+=2]);
+		for (i = 0; data[i] != 0; ++i) {
+			if (data[i] == 0x0A) print_color(default_color);
+			else if(data[i] == 0xc2 && data[i + 1] == 0xa7) {
+				i += 2;
+				print_color(data[i]);
 				continue;
 			}
-			putchar(packet->data[i]);
+			putchar(data[i]);
 		}
-		print_color(def_color); // cancel coloring
+		print_color(default_color); // cancel coloring
 	}
 	// strip colors
 	else {
-		for (i = 0; (unsigned char) packet->data[i] != 0; ++i) {
-			if ((unsigned char) packet->data[i] == 0xc2 && (unsigned char) packet->data[i+1] == 0xa7) {
-				i+=2;
+		for (i = 0; data[i] != 0; ++i) {
+			if (data[i] == 0xc2 && data[i + 1] == 0xa7) {
+				i += 2;
 				continue;
 			}	
-			putchar(packet->data[i]);
+			putchar(data[i]);
 		}
 	}
 
 	// print newline if string has no newline
-	if (packet->data[i-1] != 10 && packet->data[i-1] != 13) putchar('\n');
+	if (data[i - 1] != 10 && data[i - 1] != 13) {
+		putchar('\n');
+	}
 }
 
-rc_packet *packet_build(int id, int cmd, char *s1)
+rc_packet *packet_build(int id, int cmd, char *s)
 {
-	static rc_packet packet = {0, 0, 0, { 0x00 }};
+	static rc_packet packet = {0};
 
-	// NOTE(Tiiffi): Issue report states that outgoing payload has max size of 1460 bytes:
+	// NOTE(Tiiffi): Issue report states that maximum command packet size is 1460 bytes:
 	//				 https://github.com/Tiiffi/mcrcon/issues/45#issuecomment-1000940814
 	//				 https://mctools.readthedocs.io/en/master/rcon.html
 	//				 Have to do some testing to confirm!
 
-	// size + id + cmd + s1 + s2 NULL terminator
-	int len = strlen(s1);
-	if (len >= DATA_BUFFSIZE) {
-		fprintf(stderr, "Warning: Command string too long (%d). Maximum allowed: %d.\n", len, DATA_BUFFSIZE - 1);
+	int len = strlen(s);
+	if (len > MAX_COMMAND_LENGTH) {
+		fprintf(stderr, "Warning: Command string too long (%d). Maximum allowed: %d.\n", len, MAX_COMMAND_LENGTH);
 		return NULL;
 	}
 
-	packet.size = sizeof packet.size * 2 + len + 2;
+	packet.size = sizeof packet.id + sizeof packet.cmd + len + 2;
 	packet.id = id;
 	packet.cmd = cmd;
-	strncpy(packet.data, s1, DATA_BUFFSIZE - 1);
+	memcpy(packet.data, s, len);
+	packet.data[len] = 0;
+	packet.data[len + 1] = 0;
 
 	return &packet;
 }
 
-int rcon_auth(int sock, char *passwd)
+bool rcon_auth(int sock, char *passwd)
 {
-	int ret;
-
 	rc_packet *packet = packet_build(RCON_PID, RCON_AUTHENTICATE, passwd);
 	if (packet == NULL)
 		return 0;
 
-	ret = net_send_packet(sock, packet);
-	if (!ret)
+	if (!net_send_packet(sock, packet)) {
 		return 0; // send failed
+	}
 
 receive:
 	packet = net_recv_packet(sock);
@@ -642,19 +577,19 @@ receive:
 		goto receive;
 	}
 
-	// return 1 if authentication OK
-	return packet->id == -1 ? 0 : 1;
+	// return true if authentication OK
+	return packet->id == -1 ? false : true;
 }
 
+// TODO: Add proper error handling and reporting!
 int rcon_command(int sock, char *command)
 {
 	rc_packet *packet = packet_build(RCON_PID, RCON_EXEC_COMMAND, command);
-	if (packet == NULL) {
-		global_connection_alive = 0;
+	if (packet == NULL)
 		return 0;
-	}
 
-	net_send_packet(sock, packet);
+	if (!net_send_packet(sock, packet))
+		return 0;
 
 	packet = net_recv_packet(sock);
 	if (packet == NULL)
@@ -696,14 +631,14 @@ int run_commands(int argc, char *argv[])
 int run_terminal_mode(int sock)
 {
 	int ret = 0;
-	char command[DATA_BUFFSIZE] = {0};
+	char command[MAX_COMMAND_LENGTH] = {0};
 
 	puts("Logged in.\nType 'Q' or press Ctrl-D / Ctrl-C to disconnect.");
 
 	while (global_connection_alive) {
 		putchar('>');
 
-		int len = get_line(command, DATA_BUFFSIZE);
+		int len = get_line(command, MAX_COMMAND_LENGTH);
 		if (len < 1) continue; 
 	
 		if (strcasecmp(command, "Q") == 0)
