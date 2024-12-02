@@ -1,6 +1,9 @@
 # mcrcon
 
-mcrcon is console based Minecraft [rcon](https://developer.valvesoftware.com/wiki/Source_RCON_Protocol) client for remote administration and server maintenance scripts.
+mcrcon is a command-line [rcon](https://developer.valvesoftware.com/wiki/Source_RCON_Protocol) client intended for remote server administration and maintenance automation.
+
+Though originally developed for Minecraft servers, it also works with a variety of other servers using the Valve or Minecraft-style rcon protocol.
+
 
 ---
 
