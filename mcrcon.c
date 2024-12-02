@@ -179,20 +179,20 @@ int main(int argc, char *argv[])
 	while ((opt = getopt(argc, argv, "vrtcshw:H:p:P:")) != -1)
 	{
 		switch (opt) {
-			case 'H': host = optarg;                break;
-			case 'P': port = optarg;                break;
-			case 'p': pass = optarg;                break;
-			case 'c': flag_disable_colors = 1;    break;
-			case 's': flag_silent_mode = 1;       break;
-			case 'i': /* reserved for interp mode */break;
-			case 't': terminal_mode = 1;            break;
-			case 'r': flag_raw_output = 1;        break;
+			case 'H': host = optarg;                 break;
+			case 'P': port = optarg;                 break;
+			case 'p': pass = optarg;                 break;
+			case 'c': flag_disable_colors = 1;       break;
+			case 's': flag_silent_mode = 1;          break;
+			case 'i': /* reserved for interp mode */ break;
+			case 't': terminal_mode = 1;             break;
+			case 'r': flag_raw_output = 1;           break;
 			case 'w':
 				flag_wait_seconds = mcrcon_parse_seconds(optarg);
 			break;
 
 			case 'v':
-				puts(VER_STR" - https://github.com/Tiiffi/mcrcon");
+				puts(VER_STR);
 				puts("Bug reports:\n\ttiiffi+mcrcon at gmail\n\thttps://github.com/Tiiffi/mcrcon/issues/");
 				exit(EXIT_SUCCESS);
 
