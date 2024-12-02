@@ -29,7 +29,7 @@ make
 # install is optional
 sudo make install
 ```
-Check [INSTALL.md](INSTALL.md) for more details.
+_Check [BUILDING.md](BUILDING.md) for more details._
 
 ---
 
@@ -68,17 +68,15 @@ Send three commands ("say", "save-all", "stop") and wait five seconds between th
 ```sh
 mcrcon -H my.minecraft.server -p password -w 5 "say Server is restarting!" save-all stop
 ```
-
 ---
 
-##### How to enable rcon on a Minecraft Server 
-
-Enable rcon by adding following lines to [```server.properties```](https://minecraft.gamepedia.com/Server.properties) configuration file.
-```
-enable-rcon=true
-rcon.port=25575
-rcon.password=your_rcon_pasword
-```
+> [!TIP]
+>Enable rcon by adding following lines to [```server.properties```](https://minecraft.gamepedia.com/Server.properties) configuration file.
+>```
+>enable-rcon=true
+>rcon.port=25575
+>rcon.password=your_rcon_pasword
+>```
 
 ---
 
@@ -88,16 +86,17 @@ rcon.password=your_rcon_pasword
 * MAIL:           tiiffi+mcrcon at gmail
 * ISSUES:         https://github.com/Tiiffi/mcrcon/issues/
 
-When reporting issues, please provide the following information:
-
-- Version of mcrcon: Please specify the precise version number
-- Game: Indicate the specific game server you're using (e.g., Minecraft, Valve Source Engine game, ARK, ...)
-- Server version: Provide the exact version of the game server
-- Mods and Extensions: List all mods and extensions used, including their versions
-- Issue Description: Clearly describe the problem you're encountering and the expected behavior.
-- Steps to reproduce
-
-If you're tech-savvy, consider providing a packet capture file (PCAP). Remember to use a fake password.
+> [!TIP]
+>When reporting issues, please provide the following information:
+>
+>- Version of mcrcon: Please specify the precise version number
+>- Game: Indicate the specific game server you're using (e.g., Minecraft, Valve Source Engine game, ARK, ...)
+>- Server version: Provide the exact version of the game server
+>- Mods and Extensions: List all mods and extensions used, including their versions
+>- Issue Description: Clearly describe the problem you're encountering and the expected behavior.
+>- Steps to reproduce
+>
+>If you're tech-savvy, consider providing a packet capture file (PCAP). Remember to use a fake password.
 
 ---
 
