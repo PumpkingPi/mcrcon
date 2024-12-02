@@ -1,15 +1,22 @@
 Building and installing
 -----------------------
 
-Only dependency is C library and POSIX getopt support. 
+#### Requirements & dependencies:
+- GCC compatible compiler
+- POSIX getopt support from **<unistd.h>**
 
-Compiling with GCC or CLANG:
+---
 
-    cc -std=gnu99 -Wpedantic -Wall -Wextra -O2 -o mcrcon mcrcon.c
+#### Compiling
+
+    cc -std=gnu99 -Wpedantic -Wall -Wextra -Wno-gnu-zero-variadic-macro-arguments -O2 -o mcrcon mcrcon.c
     
-Note: on Windows remember to link with winsock by adding `-lws2_32` to your compiler command line.
+>[!NOTE]
+>If you are compiling on Windows remember to link with winsock by adding `-lws2_32` to your compiler command line.
 
-Or you can just run "**make**":
+---
+
+Or you can run **make**
 
     make           - compiles mcrcon
     make install   - installs compiled binaries and manpage to the system
@@ -19,4 +26,4 @@ Or you can just run "**make**":
         /usr/local/bin/mcrcon
         /usr/local/share/man/man1/mcrcon.1
 
-Makefile "**install**" and "**uninstall**" rules are disabled on windows.
+Makefile **install** and **uninstall** rules are not available on Windows.
