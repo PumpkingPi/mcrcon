@@ -59,6 +59,8 @@
 #define MAX_PACKET_SIZE		4106 // id (4) + cmd (4) + DATA_BUFFSIZE
 #define MIN_PACKET_SIZE		10   // id (4) + cmd (4) + two empty strings (2)
 
+#define log_error(fmt, ...) fprintf(stderr, fmt,  ##__VA_ARGS__);
+
 // rcon packet structure
 typedef struct {
     int32_t size;
@@ -103,8 +105,8 @@ int         rcon_command(int sock, char *command);
 static int flag_raw_output = 0;
 static int flag_silent_mode = 0;
 static int flag_disable_colors = 0;
-static int flag_connection_alive = 1;
 static int flag_wait_seconds = 0;
+static int global_connection_alive = 1;
 static int global_rsock;
 
 #ifdef _WIN32
@@ -125,7 +127,7 @@ void sighandler(int sig)
 	if (sig == SIGINT)
 		putchar('\n');
 
-	flag_connection_alive = 0;
+	global_connection_alive = 0;
 	#ifndef _WIN32
 	    exit(EXIT_SUCCESS);
 	#endif
@@ -139,17 +141,17 @@ unsigned int mcrcon_parse_seconds(char *str)
 	long result = strtol(str, &end, 10);
 
 	if (errno != 0) {
-		fprintf(stderr, "-w invalid value.\nerror %d: %s\n", errno, strerror(errno));
+		log_error("-w invalid value.\nerror %d: %s\n", errno, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
 	if (end == str) {
-		fprintf(stderr, "-w invalid value (not a number?)\n");
+		log_error("-w invalid value (not a number?)\n");
 		exit(EXIT_FAILURE);
 	}
 
 	if (result <= 0 || result > MAX_WAIT_TIME) {
-		fprintf(stderr, "-w value out of range.\nAcceptable value is 1 - %d (seconds).\n", MAX_WAIT_TIME);
+		log_error("-w value out of range.\nAcceptable value is 1 - %d (seconds).\n", MAX_WAIT_TIME);
 		exit(EXIT_FAILURE);
 	}
 
@@ -233,11 +235,11 @@ int main(int argc, char *argv[])
 
 	// auth & commands
 	if (rcon_auth(global_rsock, pass)) {
-		if (terminal_mode) run_terminal_mode(global_rsock);
+		if (terminal_mode) exit_code = run_terminal_mode(global_rsock);
 		else exit_code = run_commands(argc, argv);
 	}
 	else { // auth failed
-		fprintf(stderr, "Authentication failed!\n");
+		log_error("Authentication failed!\n");
 		exit_code = EXIT_FAILURE;
 	}
 
@@ -292,7 +294,7 @@ void net_init_WSA(void)
 
 	int err = WSAStartup(version, &wsadata);
 	if (err != 0) {
-		fprintf(stderr, "WSAStartup failed. Error: %d.\n", err);
+		log_error("WSAStartup failed. Error: %d.\n", err);
 		exit(EXIT_FAILURE);
 	}
 }
@@ -329,11 +331,11 @@ int net_connect(const char *host, const char *port)
 
 	int ret = getaddrinfo(host, port, &hints, &server_info);
 	if (ret != 0) {
-		fprintf(stderr, "Name resolution failed.\n");
+		log_error("Name resolution failed.\n");
 		#ifdef _WIN32
-			fprintf(stderr, "Error %d: %s", ret, gai_strerror(ret));
+			log_error("Error %d: %s", ret, gai_strerror(ret));
 		#else
-			fprintf(stderr, "Error %d: %s\n", ret, gai_strerror(ret));
+			log_error("Error %d: %s\n", ret, gai_strerror(ret));
 		#endif
 
 		exit(EXIT_FAILURE);
@@ -357,9 +359,9 @@ int net_connect(const char *host, const char *port)
 
 	if (p == NULL) {
 		/* TODO (Tiiffi): Check why windows does not report errors */
-		fprintf(stderr, "Connection failed.\n");
+		log_error("Connection failed.\n");
 		#ifndef _WIN32
-			fprintf(stderr, "Error %d: %s\n", errno, strerror(errno));
+			log_error("Error %d: %s\n", errno, strerror(errno));
 		#endif
 
 		freeaddrinfo(server_info);
@@ -398,20 +400,20 @@ rc_packet *net_recv_packet(int sd)
 	ssize_t ret = recv(sd, (char *) &psize, sizeof(psize), 0);
 
 	if (ret == 0) {
-		fprintf(stderr, "Connection lost.\n");
-		flag_connection_alive = 0;
+		log_error("Connection lost.\n");
+		global_connection_alive = 0;
 		return NULL;
 	}
 
 	if (ret != sizeof(psize)) {
-		fprintf(stderr, "Error: recv() failed.\n");
-		flag_connection_alive = 0;
+		log_error("Error: recv() failed.\n");
+		global_connection_alive = 0;
 		return NULL;
 	}
 
 	if (psize < MIN_PACKET_SIZE || psize > MAX_PACKET_SIZE) {
-		fprintf(stderr, "Error: Invalid packet size (%d).\n", psize);
-		flag_connection_alive = 0;
+		log_error("Error: Invalid packet size (%d).\n", psize);
+		global_connection_alive = 0;
 		return NULL;
 	}
 
@@ -422,8 +424,8 @@ rc_packet *net_recv_packet(int sd)
 	while (received < psize) {
 		ret = recv(sd, p + sizeof(int32_t) + received, psize - received, 0);
 		if (ret == 0) {
-			fprintf(stderr, "Connection lost.\n");
-			flag_connection_alive = 0;
+			log_error("Connection lost.\n");
+			global_connection_alive = 0;
 			return NULL;
 		}
 
@@ -541,7 +543,7 @@ rc_packet *packet_build(int id, int cmd, char *s)
 
 	int len = strlen(s);
 	if (len > MAX_COMMAND_LENGTH) {
-		fprintf(stderr, "Warning: Command string too long (%d). Maximum allowed: %d.\n", len, MAX_COMMAND_LENGTH);
+		log_error("Warning: Command string too long (%d). Maximum allowed: %d.\n", len, MAX_COMMAND_LENGTH);
 		return NULL;
 	}
 
@@ -585,18 +587,26 @@ receive:
 int rcon_command(int sock, char *command)
 {
 	rc_packet *packet = packet_build(RCON_PID, RCON_EXEC_COMMAND, command);
-	if (packet == NULL)
+	if (packet == NULL) {
+		log_error("Error: packet build() failed!\n");
 		return 0;
+	}
 
-	if (!net_send_packet(sock, packet))
+	if (!net_send_packet(sock, packet)) {
+		log_error("Error: net_send_packet() failed!\n");
 		return 0;
+	}
 
 	packet = net_recv_packet(sock);
-	if (packet == NULL)
+	if (packet == NULL) {
+		log_error("Error: net_recv_packet() failed!\n");
 		return 0;
+	}
 
-	if (packet->id != RCON_PID)
+	if (packet->id != RCON_PID) {
+		log_error("Error: invalid packet id!\n");
 		return 0;
+	}
 
 	if (!flag_silent_mode) {
 		if (packet->size > 10)
@@ -614,12 +624,14 @@ int run_commands(int argc, char *argv[])
 		if (!rcon_command(global_rsock, argv[i]))
 			return EXIT_FAILURE;
 
-		if (++i >= argc)
+		i++;
+
+		if (i >= argc)
 			return EXIT_SUCCESS;
 
 		if (flag_wait_seconds > 0) {
 			#ifdef _WIN32
-				Sleep(global_wait_seconds * 1000);
+				Sleep(flag_wait_seconds * 1000);
 			#else
 				sleep(flag_wait_seconds);
 			#endif
@@ -627,25 +639,26 @@ int run_commands(int argc, char *argv[])
 	}
 }
 
-// interactive terminal mode
+// terminal mode
 int run_terminal_mode(int sock)
 {
-	int ret = 0;
 	char command[MAX_COMMAND_LENGTH] = {0};
 
 	puts("Logged in.\nType 'Q' or press Ctrl-D / Ctrl-C to disconnect.");
 
-	while (flag_connection_alive) {
+	while (global_connection_alive) {
 		putchar('>');
 
 		int len = get_line(command, MAX_COMMAND_LENGTH);
 		if (len < 1) continue; 
 	
-		if (strcasecmp(command, "Q") == 0)
-			break;
+		if (strcasecmp(command, "Q") == 0) break;
 
-		if (len > 0 && flag_connection_alive)
-			ret += rcon_command(sock, command);
+		if (len > 0 && global_connection_alive) {
+			if (!rcon_command(sock, command)) {
+				return EXIT_FAILURE;
+			}
+		}
 
 		/* Special case for "stop" command to prevent server-side bug.
 		 * https://bugs.mojang.com/browse/MC-154617
@@ -657,11 +670,9 @@ int run_terminal_mode(int sock)
 		if (strcasecmp(command, "stop") == 0) {
 			break;
 		}
-
-		//command[0] = len = 0;
 	}
 
-	return ret;
+	return EXIT_SUCCESS;
 }
 
 // gets line from stdin and deals with rubbish left in the input buffer
@@ -670,7 +681,7 @@ int get_line(char *buffer, int bsize)
 	char *ret = fgets(buffer, bsize, stdin);
 	if (ret == NULL) {
 		if (ferror(stdin)) {
-			fprintf(stderr, "Error %d: %s\n", errno, strerror(errno));
+			log_error("Error %d: %s\n", errno, strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 		putchar('\n');
