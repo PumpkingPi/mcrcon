@@ -44,4 +44,4 @@ endif
 
 .PHONY: clean
 clean:
-	$(RM) $(EXENAME)
+	$(RM) $(EXENAME) $(EXENAME).exe
