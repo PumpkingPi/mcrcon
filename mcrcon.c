@@ -100,12 +100,12 @@ int         rcon_command(int sock, char *command);
 // =============================================
 //  GLOBAL VARIABLES
 // =============================================
-static int global_raw_output = 0;
-static int global_silent_mode = 0;
-static int global_disable_colors = 0;
-static int global_connection_alive = 1;
+static int flag_raw_output = 0;
+static int flag_silent_mode = 0;
+static int flag_disable_colors = 0;
+static int flag_connection_alive = 1;
+static int flag_wait_seconds = 0;
 static int global_rsock;
-static int global_wait_seconds = 0;
 
 #ifdef _WIN32
   // console coloring on windows
@@ -125,7 +125,7 @@ void sighandler(int sig)
 	if (sig == SIGINT)
 		putchar('\n');
 
-	global_connection_alive = 0;
+	flag_connection_alive = 0;
 	#ifndef _WIN32
 	    exit(EXIT_SUCCESS);
 	#endif
@@ -182,13 +182,13 @@ int main(int argc, char *argv[])
 			case 'H': host = optarg;                break;
 			case 'P': port = optarg;                break;
 			case 'p': pass = optarg;                break;
-			case 'c': global_disable_colors = 1;    break;
-			case 's': global_silent_mode = 1;       break;
+			case 'c': flag_disable_colors = 1;    break;
+			case 's': flag_silent_mode = 1;       break;
 			case 'i': /* reserved for interp mode */break;
 			case 't': terminal_mode = 1;            break;
-			case 'r': global_raw_output = 1;        break;
+			case 'r': flag_raw_output = 1;        break;
 			case 'w':
-				global_wait_seconds = mcrcon_parse_seconds(optarg);
+				flag_wait_seconds = mcrcon_parse_seconds(optarg);
 			break;
 
 			case 'v':
@@ -399,19 +399,19 @@ rc_packet *net_recv_packet(int sd)
 
 	if (ret == 0) {
 		fprintf(stderr, "Connection lost.\n");
-		global_connection_alive = 0;
+		flag_connection_alive = 0;
 		return NULL;
 	}
 
 	if (ret != sizeof(psize)) {
 		fprintf(stderr, "Error: recv() failed.\n");
-		global_connection_alive = 0;
+		flag_connection_alive = 0;
 		return NULL;
 	}
 
 	if (psize < MIN_PACKET_SIZE || psize > MAX_PACKET_SIZE) {
 		fprintf(stderr, "Error: Invalid packet size (%d).\n", psize);
-		global_connection_alive = 0;
+		flag_connection_alive = 0;
 		return NULL;
 	}
 
@@ -423,7 +423,7 @@ rc_packet *net_recv_packet(int sd)
 		ret = recv(sd, p + sizeof(int32_t) + received, psize - received, 0);
 		if (ret == 0) {
 			fprintf(stderr, "Connection lost.\n");
-			global_connection_alive = 0;
+			flag_connection_alive = 0;
 			return NULL;
 		}
 
@@ -483,7 +483,7 @@ void packet_print(rc_packet *packet)
 {
 	uint8_t *data = packet->data;
 
-	if (global_raw_output == 1) {
+	if (flag_raw_output == 1) {
 		for (int i = 0; data[i] != 0; ++i) {
 			putchar(data[i]);
 		}
@@ -501,7 +501,7 @@ void packet_print(rc_packet *packet)
 	#endif
 
 	// colors enabled so try to handle the bukkit colors for terminal
-	if (global_disable_colors == 0) {
+	if (flag_disable_colors == 0) {
 		for (i = 0; data[i] != 0; ++i) {
 			if (data[i] == 0x0A) print_color(default_color);
 			else if(data[i] == 0xc2 && data[i + 1] == 0xa7) {
@@ -598,7 +598,7 @@ int rcon_command(int sock, char *command)
 	if (packet->id != RCON_PID)
 		return 0;
 
-	if (!global_silent_mode) {
+	if (!flag_silent_mode) {
 		if (packet->size > 10)
 		packet_print(packet);
 	}
@@ -617,11 +617,11 @@ int run_commands(int argc, char *argv[])
 		if (++i >= argc)
 			return EXIT_SUCCESS;
 
-		if (global_wait_seconds > 0) {
+		if (flag_wait_seconds > 0) {
 			#ifdef _WIN32
 				Sleep(global_wait_seconds * 1000);
 			#else
-				sleep(global_wait_seconds);
+				sleep(flag_wait_seconds);
 			#endif
 		}
 	}
@@ -635,7 +635,7 @@ int run_terminal_mode(int sock)
 
 	puts("Logged in.\nType 'Q' or press Ctrl-D / Ctrl-C to disconnect.");
 
-	while (global_connection_alive) {
+	while (flag_connection_alive) {
 		putchar('>');
 
 		int len = get_line(command, MAX_COMMAND_LENGTH);
@@ -644,7 +644,7 @@ int run_terminal_mode(int sock)
 		if (strcasecmp(command, "Q") == 0)
 			break;
 
-		if (len > 0 && global_connection_alive)
+		if (len > 0 && flag_connection_alive)
 			ret += rcon_command(sock, command);
 
 		/* Special case for "stop" command to prevent server-side bug.
