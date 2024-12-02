@@ -71,7 +71,7 @@ mcrcon -H my.minecraft.server -p password -w 5 "say Server is restarting!" save-
 ---
 
 > [!TIP]
->Enable rcon by adding following lines to [```server.properties```](https://minecraft.gamepedia.com/Server.properties) configuration file.
+>Enable RCON on Minecraft server by adding following lines to [```server.properties```](https://minecraft.gamepedia.com/Server.properties) configuration file.
 >```
 >enable-rcon=true
 >rcon.port=25575
