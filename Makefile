@@ -13,8 +13,8 @@ INSTALL = install
 LINKER =
 RM = rm -v -f
 
-CC = gcc
-CFLAGS = -std=gnu99 -Wall -Wextra -Wpedantic -O2
+CC ?= gcc
+CFLAGS = -std=gnu99 -Wall -Wextra -Wpedantic -Wno-gnu-zero-variadic-macro-arguments -O2
 EXTRAFLAGS ?= -fstack-protector-all
 
 ifeq ($(OS), Windows_NT)
