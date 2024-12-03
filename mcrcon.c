@@ -90,7 +90,7 @@ int         run_terminal_mode(int sock);
 int         run_commands(int argc, char *argv[]);
 
 // Rcon protocol related functions
-rc_packet*  packet_build(int id, int cmd, char *s1);
+rc_packet*  packet_build(int id, int cmd, char s[static 1]);
 void        packet_print(rc_packet *packet);
 bool        rcon_auth(int sock, char *passwd);
 int         rcon_command(int sock, char *command);
@@ -529,7 +529,7 @@ void packet_print(rc_packet *packet)
 	}
 }
 
-rc_packet *packet_build(int id, int cmd, char *s)
+rc_packet *packet_build(int id, int cmd, char s[static 1])
 {
 	static rc_packet packet = {0};
 
