@@ -547,7 +547,7 @@ rc_packet *packet_build(int id, int cmd, char s[static 1])
 	packet.size = sizeof packet.id + sizeof packet.cmd + len + 2;
 	packet.id = id;
 	packet.cmd = cmd;
-	memcpy(packet.data, s, len);
+	if (packet.size > 0) memcpy(packet.data, s, len);
 	packet.data[len] = 0;
 	packet.data[len + 1] = 0;
 
