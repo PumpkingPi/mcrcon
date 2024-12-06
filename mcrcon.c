@@ -32,16 +32,16 @@
 #include <unistd.h>
 
 #ifdef _WIN32
-	#include <winsock2.h>
-	#include <windows.h>
-	#include <ws2tcpip.h>
-	#include <fcntl.h>
-	#include <wchar.h>
+    #include <winsock2.h>
+    #include <windows.h>
+    #include <ws2tcpip.h>
+    #include <fcntl.h>
+    #include <wchar.h>
 #else
-	#include <sys/socket.h>
-	#include <sys/select.h>
-	#include <netdb.h>
-	#include <termios.h>
+    #include <sys/socket.h>
+    #include <sys/select.h>
+    #include <netdb.h>
+    #include <termios.h>
 #endif
 
 #define VERSION "0.8.0"
@@ -54,22 +54,22 @@
 #define RCON_AUTH_RESPONSE      2
 #define RCON_PID                0xBADC0DE
 
-#define MAX_COMMAND_LENGTH 	4096
-#define DATA_BUFFSIZE		MAX_COMMAND_LENGTH + 2 // plus two null terminators
-#define MAX_PACKET_SIZE		4106 // id (4) + cmd (4) + DATA_BUFFSIZE
-#define MIN_PACKET_SIZE		10   // id (4) + cmd (4) + two empty strings (2)
+#define MAX_COMMAND_LENGTH      4096
+#define DATA_BUFFSIZE           MAX_COMMAND_LENGTH + 2 // plus two null terminators
+#define MAX_PACKET_SIZE         4106 // id (4) + cmd (4) + DATA_BUFFSIZE
+#define MIN_PACKET_SIZE         10   // id (4) + cmd (4) + two empty strings (2)
 
-#define MAX_WAIT_TIME 600
+#define MAX_WAIT_TIME           600
 
 #define log_error(fmt, ...) fprintf(stderr, fmt,  ##__VA_ARGS__);
 
 // rcon packet structure
 typedef struct {
-	int32_t size;
-	int32_t id;
-	int32_t cmd;
-	uint8_t data[DATA_BUFFSIZE];
-	// ignoring string2 for now
+    int32_t size;
+    int32_t id;
+    int32_t cmd;
+    uint8_t data[DATA_BUFFSIZE];
+    // ignoring string2 for now
 } rc_packet;
 
 // ===================================
@@ -124,290 +124,290 @@ UINT old_input_codepage;
 // safety stuff (windows is still misbehaving)
 void exit_proc(void)
 {
-	if (global_rsock != -1)
-		net_close(global_rsock);
+    if (global_rsock != -1)
+        net_close(global_rsock);
 
-	#ifdef _WIN32
-	// Restore previous code pages
-	SetConsoleOutputCP(old_output_codepage);
-	SetConsoleCP(old_input_codepage);
+    #ifdef _WIN32
+    // Restore previous code pages
+    SetConsoleOutputCP(old_output_codepage);
+    SetConsoleCP(old_input_codepage);
 
-	// Set back to binary mode
-	_setmode(_fileno(stdin), _O_BINARY);
-	#endif
+    // Set back to binary mode
+    _setmode(_fileno(stdin), _O_BINARY);
+    #endif
 }
 
 // TODO: check exact windows and linux behaviour
 void sighandler(int sig)
 {
-	if (sig == SIGINT)
-		putchar('\n');
+    if (sig == SIGINT)
+        putchar('\n');
 
-	global_connection_alive = 0;
-	exit(EXIT_SUCCESS);
+    global_connection_alive = 0;
+    exit(EXIT_SUCCESS);
 }
 
 unsigned int mcrcon_parse_seconds(char *str)
 {
-	char *end;
-	long result = strtol(str, &end, 10);
+    char *end;
+    long result = strtol(str, &end, 10);
 
-	if (errno != 0) {
-		log_error("-w invalid value.\nerror %d: %s\n", errno, strerror(errno));
-		exit(EXIT_FAILURE);
-	}
+    if (errno != 0) {
+        log_error("-w invalid value.\nerror %d: %s\n", errno, strerror(errno));
+        exit(EXIT_FAILURE);
+    }
 
-	if (end == str) {
-		log_error("-w invalid value (not a number?)\n");
-		exit(EXIT_FAILURE);
-	}
+    if (end == str) {
+        log_error("-w invalid value (not a number?)\n");
+        exit(EXIT_FAILURE);
+    }
 
-	if (result <= 0 || result > MAX_WAIT_TIME) {
-		log_error("-w value out of range.\nAcceptable value is 1 - %d (seconds).\n", MAX_WAIT_TIME);
-		exit(EXIT_FAILURE);
-	}
+    if (result <= 0 || result > MAX_WAIT_TIME) {
+        log_error("-w value out of range.\nAcceptable value is 1 - %d (seconds).\n", MAX_WAIT_TIME);
+        exit(EXIT_FAILURE);
+    }
 
-	return (unsigned int) result;
+    return (unsigned int) result;
 }
 
 int main(int argc, char *argv[])
 {
-	int terminal_mode = 0;
+    int terminal_mode = 0;
 
-	char *host = getenv("MCRCON_HOST");
-	char *pass = getenv("MCRCON_PASS");
-	char *port = getenv("MCRCON_PORT");
+    char *host = getenv("MCRCON_HOST");
+    char *pass = getenv("MCRCON_PASS");
+    char *port = getenv("MCRCON_PORT");
 
-	if (!port) port = "25575";
-	if (!host) host = "localhost";
+    if (!port) port = "25575";
+    if (!host) host = "localhost";
 
-	if(argc < 1 && pass == NULL) usage();
+    if(argc < 1 && pass == NULL) usage();
 
-	// default getopt error handler enabled
-	opterr = 1;
-	int opt;
-	while ((opt = getopt(argc, argv, "vrtcshw:H:p:P:")) != -1)
-	{
-		switch (opt) {
-			case 'H': host = optarg;                 break;
-			case 'P': port = optarg;                 break;
-			case 'p': pass = optarg;                 break;
-			case 'c': flag_disable_colors = 1;       break;
-			case 's': flag_silent_mode = 1;          break;
-			case 'i': /* reserved for interp mode */ break;
-			case 't': terminal_mode = 1;             break;
-			case 'r': flag_raw_output = 1;           break;
-			case 'w':
-				flag_wait_seconds = mcrcon_parse_seconds(optarg);
-				break;
+    // default getopt error handler enabled
+    opterr = 1;
+    int opt;
+    while ((opt = getopt(argc, argv, "vrtcshw:H:p:P:")) != -1)
+    {
+        switch (opt) {
+            case 'H': host = optarg;                 break;
+            case 'P': port = optarg;                 break;
+            case 'p': pass = optarg;                 break;
+            case 'c': flag_disable_colors = 1;       break;
+            case 's': flag_silent_mode = 1;          break;
+            case 'i': /* reserved for interp mode */ break;
+            case 't': terminal_mode = 1;             break;
+            case 'r': flag_raw_output = 1;           break;
+            case 'w':
+                flag_wait_seconds = mcrcon_parse_seconds(optarg);
+                break;
 
-			case 'v':
-				puts(VER_STR);
-				puts("Bug reports:\n\ttiiffi+mcrcon at gmail\n\thttps://github.com/Tiiffi/mcrcon/issues/");
-				exit(EXIT_SUCCESS);
+            case 'v':
+                puts(VER_STR);
+                puts("Bug reports:\n\ttiiffi+mcrcon at gmail\n\thttps://github.com/Tiiffi/mcrcon/issues/");
+                exit(EXIT_SUCCESS);
 
-			case 'h': usage(); break;
-			case '?':
-			default:
-				puts("Try 'mcrcon -h' or 'man mcrcon' for help.");
-				exit(EXIT_FAILURE);
-		}
-	}
+            case 'h': usage(); break;
+            case '?':
+            default:
+                puts("Try 'mcrcon -h' or 'man mcrcon' for help.");
+                exit(EXIT_FAILURE);
+        }
+    }
 
-	if (pass == NULL) {
-		puts("You must give password (-p password).\nTry 'mcrcon -h' or 'man mcrcon' for help.");
-		exit(EXIT_FAILURE);
-	}
+    if (pass == NULL) {
+        puts("You must give password (-p password).\nTry 'mcrcon -h' or 'man mcrcon' for help.");
+        exit(EXIT_FAILURE);
+    }
 
-	if(optind == argc && terminal_mode == 0) {
-		terminal_mode = 1;
-	}
+    if(optind == argc && terminal_mode == 0) {
+        terminal_mode = 1;
+    }
 
-	// safety features to prevent "IO: Connection reset" bug on the server side
-	atexit(&exit_proc);
-	signal(SIGABRT, &sighandler);
-	signal(SIGTERM, &sighandler);
-	signal(SIGINT, &sighandler);
+    // safety features to prevent "IO: Connection reset" bug on the server side
+    atexit(&exit_proc);
+    signal(SIGABRT, &sighandler);
+    signal(SIGTERM, &sighandler);
+    signal(SIGINT, &sighandler);
 
-	#ifdef _WIN32
-	net_init_WSA();
-	console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
-	if (console_handle == INVALID_HANDLE_VALUE)
-		console_handle = NULL;
+    #ifdef _WIN32
+    net_init_WSA();
+    console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (console_handle == INVALID_HANDLE_VALUE)
+        console_handle = NULL;
 
-	// Set the output and input code pages to utf-8
-	old_output_codepage = GetConsoleOutputCP();
-	old_input_codepage = GetConsoleCP();
+    // Set the output and input code pages to utf-8
+    old_output_codepage = GetConsoleOutputCP();
+    old_input_codepage = GetConsoleCP();
 
-	SetConsoleOutputCP(CP_UTF8);
-	SetConsoleCP(CP_UTF8);
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
 
-	// Set the file translation mode to UTF16
-	_setmode(_fileno(stdin), _O_U16TEXT);
-	#endif
+    // Set the file translation mode to UTF16
+    _setmode(_fileno(stdin), _O_U16TEXT);
+    #endif
 
-	// open socket
-	global_rsock = net_connect(host, port);
+    // open socket
+    global_rsock = net_connect(host, port);
 
-	int exit_code = EXIT_SUCCESS;
+    int exit_code = EXIT_SUCCESS;
 
-	// auth & commands
-	if (rcon_auth(global_rsock, pass)) {
-		if (terminal_mode) exit_code = run_terminal_mode(global_rsock);
-		else exit_code = run_commands(argc, argv);
-	}
-	else { // auth failed
-		log_error("Authentication failed!\n");
-		exit_code = EXIT_FAILURE;
-	}
+    // auth & commands
+    if (rcon_auth(global_rsock, pass)) {
+        if (terminal_mode) exit_code = run_terminal_mode(global_rsock);
+        else exit_code = run_commands(argc, argv);
+    }
+    else { // auth failed
+        log_error("Authentication failed!\n");
+        exit_code = EXIT_FAILURE;
+    }
 
-	exit(exit_code);
+    exit(exit_code);
 }
 
 void usage(void)
 {
-	puts(
-		"Usage: "IN_NAME" [OPTIONS] [COMMANDS]\n\n"
-		"Send rcon commands to Minecraft server.\n\n"
-		"Options:\n"
-		"  -H\t\tServer address (default: localhost)\n"
-		"  -P\t\tPort (default: 25575)\n"
-		"  -p\t\tRcon password\n"
-		"  -t\t\tTerminal mode\n"
-		"  -s\t\tSilent mode\n"
-		"  -c\t\tDisable colors\n"
-		"  -r\t\tOutput raw packets\n"
-		"  -w\t\tWait for specified duration (seconds) between each command (1 - 600s)\n"
-		"  -h\t\tPrint usage\n"
-		"  -v\t\tVersion information\n\n"
-		"Server address, port and password can be set with following environment variables:\n"
-		"  MCRCON_HOST\n"
-		"  MCRCON_PORT\n"
-		"  MCRCON_PASS\n"
-	);
+    puts(
+        "Usage: "IN_NAME" [OPTIONS] [COMMANDS]\n\n"
+        "Send rcon commands to Minecraft server.\n\n"
+        "Options:\n"
+        "  -H\t\tServer address (default: localhost)\n"
+        "  -P\t\tPort (default: 25575)\n"
+        "  -p\t\tRcon password\n"
+        "  -t\t\tTerminal mode\n"
+        "  -s\t\tSilent mode\n"
+        "  -c\t\tDisable colors\n"
+        "  -r\t\tOutput raw packets\n"
+        "  -w\t\tWait for specified duration (seconds) between each command (1 - 600s)\n"
+        "  -h\t\tPrint usage\n"
+        "  -v\t\tVersion information\n\n"
+        "Server address, port and password can be set with following environment variables:\n"
+        "  MCRCON_HOST\n"
+        "  MCRCON_PORT\n"
+        "  MCRCON_PASS\n"
+    );
 
-	puts (
-		"- mcrcon will start in terminal mode if no commands are given\n"
-		"- Command-line options will override environment variables\n"
-		"- Rcon commands with spaces must be enclosed in quotes\n"
-	);
-	puts("Example:\n\t"IN_NAME" -H my.minecraft.server -p password -w 5 \"say Server is restarting!\" save-all stop\n");
+    puts (
+        "- mcrcon will start in terminal mode if no commands are given\n"
+        "- Command-line options will override environment variables\n"
+        "- Rcon commands with spaces must be enclosed in quotes\n"
+    );
+    puts("Example:\n\t"IN_NAME" -H my.minecraft.server -p password -w 5 \"say Server is restarting!\" save-all stop\n");
 
-	#ifdef _WIN32
-	puts("Press enter to exit.");
-	getchar();
-	#endif
+    #ifdef _WIN32
+    puts("Press enter to exit.");
+    getchar();
+    #endif
 
-	exit(EXIT_SUCCESS);
+    exit(EXIT_SUCCESS);
 }
 
 #ifdef _WIN32
 void net_init_WSA(void)
 {
-	WSADATA wsadata;
+    WSADATA wsadata;
 
-	// Request winsock 2.2 for now.
-	// Should be compatible down to Win XP.
-	WORD version = MAKEWORD(2, 2);
+    // Request winsock 2.2 for now.
+    // Should be compatible down to Win XP.
+    WORD version = MAKEWORD(2, 2);
 
-	int err = WSAStartup(version, &wsadata);
-	if (err != 0) {
-		log_error("WSAStartup failed. Error: %d.\n", err);
-		exit(EXIT_FAILURE);
-	}
+    int err = WSAStartup(version, &wsadata);
+    if (err != 0) {
+        log_error("WSAStartup failed. Error: %d.\n", err);
+        exit(EXIT_FAILURE);
+    }
 }
 #endif
 
 // socket close and cleanup
 void net_close(int sd)
 {
-	#ifdef _WIN32
-	closesocket(sd);
-	WSACleanup();
-	#else
-	close(sd);
-	#endif
+    #ifdef _WIN32
+    closesocket(sd);
+    WSACleanup();
+    #else
+    close(sd);
+    #endif
 }
 
 // http://man7.org/linux/man-pages/man3/getaddrinfo.3.html
 // https://bugs.chromium.org/p/chromium/issues/detail?id=44489
 int net_connect(const char *host, const char *port)
 {
-	int sd;
+    int sd;
 
-	struct addrinfo hints;
-	struct addrinfo *server_info, *p;
+    struct addrinfo hints;
+    struct addrinfo *server_info, *p;
 
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = IPPROTO_TCP;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
 
-	#ifdef _WIN32
-	net_init_WSA();
-	#endif
+    #ifdef _WIN32
+    net_init_WSA();
+    #endif
 
-	int ret = getaddrinfo(host, port, &hints, &server_info);
-	if (ret != 0) {
-		log_error("Name resolution failed.\n");
-		#ifdef _WIN32
-		log_error("Error %d: %s", ret, gai_strerror(ret));
-		#else
-		log_error("Error %d: %s\n", ret, gai_strerror(ret));
-		#endif
+    int ret = getaddrinfo(host, port, &hints, &server_info);
+    if (ret != 0) {
+        log_error("Name resolution failed.\n");
+        #ifdef _WIN32
+        log_error("Error %d: %s", ret, gai_strerror(ret));
+        #else
+        log_error("Error %d: %s\n", ret, gai_strerror(ret));
+        #endif
 
-		exit(EXIT_FAILURE);
-	}
+        exit(EXIT_FAILURE);
+    }
 
-	// Go through the hosts and try to connect
-	for (p = server_info; p != NULL; p = p->ai_next) {
-		sd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+    // Go through the hosts and try to connect
+    for (p = server_info; p != NULL; p = p->ai_next) {
+        sd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
 
-		if (sd == -1)
-			continue;
+        if (sd == -1)
+            continue;
 
-		ret = connect(sd, p->ai_addr, p->ai_addrlen);
-		if (ret == -1) {
-			net_close(sd);
-			continue;
-		}
-		// Get out of the loop when connect is successful
-		break;
-	}
+        ret = connect(sd, p->ai_addr, p->ai_addrlen);
+        if (ret == -1) {
+            net_close(sd);
+            continue;
+        }
+        // Get out of the loop when connect is successful
+        break;
+    }
 
-	if (p == NULL) {
-		/* TODO (Tiiffi): Check why windows does not report errors */
-		log_error("Connection failed.\n");
-		#ifndef _WIN32
-		log_error("Error %d: %s\n", errno, strerror(errno));
-		#endif
+    if (p == NULL) {
+        /* TODO (Tiiffi): Check why windows does not report errors */
+        log_error("Connection failed.\n");
+        #ifndef _WIN32
+        log_error("Error %d: %s\n", errno, strerror(errno));
+        #endif
 
-		freeaddrinfo(server_info);
-		exit(EXIT_FAILURE);
-	}
+        freeaddrinfo(server_info);
+        exit(EXIT_FAILURE);
+    }
 
-	freeaddrinfo(server_info);
-	return sd;
+    freeaddrinfo(server_info);
+    return sd;
 }
 
 bool net_send_packet(int sd, rc_packet *packet)
 {
-	size_t sent = 0;
-	size_t size = packet->size + sizeof(int32_t);
-	size_t left = size;
+    size_t sent = 0;
+    size_t size = packet->size + sizeof(int32_t);
+    size_t left = size;
 
-	char *p = (char *) packet;
+    char *p = (char *) packet;
 
-	while (sent < size) {
-		ssize_t result = send(sd, p + sent, left, 0);
+    while (sent < size) {
+        ssize_t result = send(sd, p + sent, left, 0);
 
-		if (result == -1) return false;
+        if (result == -1) return false;
 
-		sent += result;
-		left -= sent;
-	}
+        sent += result;
+        left -= sent;
+    }
 
-	return true;
+    return true;
 }
 
 
@@ -415,427 +415,417 @@ bool net_send_packet(int sd, rc_packet *packet)
 //       command is issued. Client should close gracefully without errors.
 rc_packet *net_recv_packet(int sd)
 {
-	int32_t psize;
-	static rc_packet packet = {0};
+    int32_t psize;
+    static rc_packet packet = {0};
 
-	ssize_t ret = recv(sd, (char *) &psize, sizeof(psize), 0);
+    ssize_t ret = recv(sd, (char *) &psize, sizeof(psize), 0);
 
-	if (ret == 0) {
-		log_error("Connection lost.\n");
-		global_connection_alive = 0;
-		return NULL;
-	}
+    if (ret == 0) {
+        log_error("Connection lost.\n");
+        global_connection_alive = 0;
+        return NULL;
+    }
 
-	if (ret != sizeof(psize)) {
-		log_error("Error: recv() failed.\n");
-		global_connection_alive = 0;
-		return NULL;
-	}
+    if (ret != sizeof(psize)) {
+        log_error("Error: recv() failed.\n");
+        global_connection_alive = 0;
+        return NULL;
+    }
 
-	if (psize < MIN_PACKET_SIZE || psize > MAX_PACKET_SIZE) {
-		log_error("Error: Invalid packet size (%d).\n", psize);
-		global_connection_alive = 0;
-		return NULL;
-	}
+    if (psize < MIN_PACKET_SIZE || psize > MAX_PACKET_SIZE) {
+        log_error("Error: Invalid packet size (%d).\n", psize);
+        global_connection_alive = 0;
+        return NULL;
+    }
 
-	packet.size = psize;
-	char *p = (char *) &packet;
+    packet.size = psize;
+    char *p = (char *) &packet;
 
-	int received = 0;
-	while (received < psize) {
-		ret = recv(sd, p + sizeof(int32_t) + received, psize - received, 0);
-		if (ret == 0) {
-			log_error("Connection lost.\n");
-			global_connection_alive = 0;
-			return NULL;
-		}
+    int received = 0;
+    while (received < psize) {
+        ret = recv(sd, p + sizeof(int32_t) + received, psize - received, 0);
+        if (ret == 0) {
+            log_error("Connection lost.\n");
+            global_connection_alive = 0;
+            return NULL;
+        }
 
-		received += ret;
-	}
+        received += ret;
+    }
 
-	return &packet;
+    return &packet;
 }
 
 void print_color(int color)
 {
-	// sh compatible color array
-	#ifndef _WIN32
-	char *colors[] = {
-		"\033[0;30m",   /* 00 BLACK     0x30 */
-		"\033[0;34m",   /* 01 BLUE      0x31 */
-		"\033[0;32m",   /* 02 GREEN     0x32 */
-		"\033[0;36m",   /* 03 CYAN      0x33 */
-		"\033[0;31m",   /* 04 RED       0x34 */
-		"\033[0;35m",   /* 05 PURPLE    0x35 */
-		"\033[0;33m",   /* 06 GOLD      0x36 */
-		"\033[0;37m",   /* 07 GREY      0x37 */
-		"\033[0;1;30m", /* 08 DGREY     0x38 */
-		"\033[0;1;34m", /* 09 LBLUE     0x39 */
-		"\033[0;1;32m", /* 10 LGREEN    0x61 */
-		"\033[0;1;36m", /* 11 LCYAN     0x62 */
-		"\033[0;1;31m", /* 12 LRED      0x63 */
-		"\033[0;1;35m", /* 13 LPURPLE   0x64 */
-		"\033[0;1;33m", /* 14 YELLOW    0x65 */
-		"\033[0;1;37m", /* 15 WHITE     0x66 */
-		"\033[4m"       /* 16 UNDERLINE 0x6e */
-	};
+    // sh compatible color array
+    #ifndef _WIN32
+    char *colors[] = {
+        "\033[0;30m",   /* 00 BLACK     0x30 */
+        "\033[0;34m",   /* 01 BLUE      0x31 */
+        "\033[0;32m",   /* 02 GREEN     0x32 */
+        "\033[0;36m",   /* 03 CYAN      0x33 */
+        "\033[0;31m",   /* 04 RED       0x34 */
+        "\033[0;35m",   /* 05 PURPLE    0x35 */
+        "\033[0;33m",   /* 06 GOLD      0x36 */
+        "\033[0;37m",   /* 07 GREY      0x37 */
+        "\033[0;1;30m", /* 08 DGREY     0x38 */
+        "\033[0;1;34m", /* 09 LBLUE     0x39 */
+        "\033[0;1;32m", /* 10 LGREEN    0x61 */
+        "\033[0;1;36m", /* 11 LCYAN     0x62 */
+        "\033[0;1;31m", /* 12 LRED      0x63 */
+        "\033[0;1;35m", /* 13 LPURPLE   0x64 */
+        "\033[0;1;33m", /* 14 YELLOW    0x65 */
+        "\033[0;1;37m", /* 15 WHITE     0x66 */
+        "\033[4m"       /* 16 UNDERLINE 0x6e */
+    };
 
-	if (color == 0 || color == 0x72) {
-		fputs("\033[0m", stdout); // cancel color
-	}
-	else
-	#endif
-	{
-		if (color >= 0x61 && color <= 0x66) color -= 0x57;
-		else if (color >= 0x30 && color <= 0x39)
-			color -= 0x30;
-		else if (color == 0x6e)
-			color = 16;
-		else return;
+    if (color == 0 || color == 0x72) {
+        fputs("\033[0m", stdout); // cancel color
+    }
+    else
+        #endif
+    {
+        if (color >= 0x61 && color <= 0x66) color -= 0x57;
+        else if (color >= 0x30 && color <= 0x39)
+            color -= 0x30;
+        else if (color == 0x6e)
+            color = 16;
+        else return;
 
-		#ifndef _WIN32
-		fputs(colors[color], stdout);
-		#else
-		SetConsoleTextAttribute(console_handle, color);
-		#endif
-	}
+        #ifndef _WIN32
+        fputs(colors[color], stdout);
+        #else
+        SetConsoleTextAttribute(console_handle, color);
+        #endif
+    }
 }
 
 // this hacky mess might use some optimizing
 void packet_print(rc_packet *packet)
 {
-	uint8_t *data = packet->data;
-	int i;
+    uint8_t *data = packet->data;
+    int i;
 
-	if (flag_raw_output == 1) {
-		fputs((char *) data, stdout);
-		return;
-	}
+    if (flag_raw_output == 1) {
+        fputs((char *) data, stdout);
+        return;
+    }
 
-	// Newline fix for Minecraft
-	if (global_valve_protocol == false) {
-		const char test[] = "Unknown or incomplete command, see below for error";
-		size_t test_size = sizeof test - 1;
-		if (strncmp((char *) data, test, test_size) == 0) {
-			fwrite(data, test_size, 1, stdout);
-			putchar('\n');
-			data = &data[test_size];
-		}
-	}
+    // Newline fix for Minecraft
+    if (global_valve_protocol == false) {
+        const char test[] = "Unknown or incomplete command, see below for error";
+        size_t test_size = sizeof test - 1;
+        if (strncmp((char *) data, test, test_size) == 0) {
+            fwrite(data, test_size, 1, stdout);
+            putchar('\n');
+            data = &data[test_size];
+        }
+    }
 
-	int default_color = 0;
+    int default_color = 0;
 
-	#ifdef _WIN32
-	CONSOLE_SCREEN_BUFFER_INFO console_info;
-	if (GetConsoleScreenBufferInfo(console_handle, &console_info) != 0) {
-		default_color = console_info.wAttributes + 0x30;
-	}
-	else default_color = 0x37;
-	#endif
+    #ifdef _WIN32
+    CONSOLE_SCREEN_BUFFER_INFO console_info;
+    if (GetConsoleScreenBufferInfo(console_handle, &console_info) != 0) {
+        default_color = console_info.wAttributes + 0x30;
+    }
+    else default_color = 0x37;
+    #endif
 
-	bool slash = false;
-	bool colors_detected = false;
+    bool slash = false;
+    bool colors_detected = false;
 
-	for (i = 0; data[i] != 0; ++i)
-	{
-		if (data[i] == 0x0A) {
-			print_color(default_color);
-		}
-		else if(data[i] == 0xc2 && data[i + 1] == 0xa7) {
-			// Disable new line fixes if Bukkit colors are detected
-			colors_detected = true;
-			i += 2;
-			if (flag_disable_colors == 0) {
-				print_color(data[i]);
-			}
-			continue;
-		}
+    for (i = 0; data[i] != 0; ++i)
+    {
+        if (data[i] == 0x0A) {
+            print_color(default_color);
+        }
+        else if(data[i] == 0xc2 && data[i + 1] == 0xa7) {
+            // Disable new line fixes if Bukkit colors are detected
+            colors_detected = true;
+            i += 2;
+            if (flag_disable_colors == 0) {
+                print_color(data[i]);
+            }
+            continue;
+        }
 
-		// Add missing newlines
-		if (colors_detected == false && global_minecraft_newline_fix && data[i] == '/') {
-			slash ? putchar('\n') : (slash = true);
-		}
+        // Add missing newlines
+        if (colors_detected == false && global_minecraft_newline_fix && data[i] == '/') {
+            slash ? putchar('\n') : (slash = true);
+        }
 
-		putchar(data[i]);
-	}
-	print_color(default_color); // cancel coloring
+        putchar(data[i]);
+    }
+    print_color(default_color); // cancel coloring
 
-	// print newline if string has no newline
-	if (data[i - 1] != '\n') {
-		putchar('\n');
-	}
+    // print newline if string has no newline
+    if (data[i - 1] != '\n') {
+        putchar('\n');
+    }
 
-	fflush(stdout);
+    fflush(stdout);
 }
 
 rc_packet *packet_build(int id, int cmd, char s[static 1])
 {
-	static rc_packet packet = {0};
+    static rc_packet packet = {0};
 
-	// NOTE(Tiiffi): Issue report states that maximum command packet size is 1460 bytes:
-	//				 https://github.com/Tiiffi/mcrcon/issues/45#issuecomment-1000940814
-	//				 https://mctools.readthedocs.io/en/master/rcon.html
-	//				 Have to do some testing to confirm!
+    // NOTE(Tiiffi): Issue report states that maximum command packet size is 1460 bytes:
+    //               https://github.com/Tiiffi/mcrcon/issues/45#issuecomment-1000940814
+    //               https://mctools.readthedocs.io/en/master/rcon.html
+    //               Have to do some testing to confirm!
 
-	int len = strlen(s);
-	if (len > MAX_COMMAND_LENGTH) {
-		log_error("Warning: Command string too long (%d). Maximum allowed: %d.\n", len, MAX_COMMAND_LENGTH);
-		return NULL;
-	}
+    int len = strlen(s);
+    if (len > MAX_COMMAND_LENGTH) {
+        log_error("Warning: Command string too long (%d). Maximum allowed: %d.\n", len, MAX_COMMAND_LENGTH);
+        return NULL;
+    }
 
-	packet.size = sizeof packet.id + sizeof packet.cmd + len + 2;
-	packet.id = id;
-	packet.cmd = cmd;
-	if (packet.size > 0) memcpy(packet.data, s, len);
-	packet.data[len] = 0;
-	packet.data[len + 1] = 0;
+    packet.size = sizeof packet.id + sizeof packet.cmd + len + 2;
+    packet.id = id;
+    packet.cmd = cmd;
+    if (packet.size > 0) memcpy(packet.data, s, len);
+    packet.data[len] = 0;
+    packet.data[len + 1] = 0;
 
-	return &packet;
+    return &packet;
 }
 
 bool rcon_auth(int sock, char *passwd)
 {
-	rc_packet *packet = packet_build(RCON_PID, RCON_AUTHENTICATE, passwd);
-	if (packet == NULL)
-		return 0;
+    rc_packet *packet = packet_build(RCON_PID, RCON_AUTHENTICATE, passwd);
+    if (packet == NULL)
+        return 0;
 
-	if (!net_send_packet(sock, packet)) {
-		return 0; // send failed
-	}
+    if (!net_send_packet(sock, packet)) {
+        return 0; // send failed
+    }
 
-	receive:
-	packet = net_recv_packet(sock);
-	if (packet == NULL)
-		return 0;
+    receive:
+    packet = net_recv_packet(sock);
+    if (packet == NULL)
+        return 0;
 
-	/* Valve rcon sends empty "RCON_RESPONSEVALUE" packet before real auth response
-	 * so we have to check packet type and try again if necessary.
-	 */
-	if (packet->cmd != RCON_AUTH_RESPONSE) {
-		global_valve_protocol = true;
-		goto receive;
-	}
+    /* Valve rcon sends empty "RCON_RESPONSEVALUE" packet before real auth response
+     * so we have to check packet type and try again if necessary.
+     */
+    if (packet->cmd != RCON_AUTH_RESPONSE) {
+        global_valve_protocol = true;
+        goto receive;
+    }
 
-	// return true if authentication OK
-	return packet->id == -1 ? false : true;
+    // return true if authentication OK
+    return packet->id == -1 ? false : true;
 }
 
 int rcon_command(int sock, char *command)
 {
-	if (global_valve_protocol == false && strcasecmp(command, "help") == 0)
-		global_minecraft_newline_fix = true;
+    if (global_valve_protocol == false && strcasecmp(command, "help") == 0)
+        global_minecraft_newline_fix = true;
 
-	rc_packet *packet = packet_build(RCON_PID, RCON_EXEC_COMMAND, command);
-	if (packet == NULL) {
-		log_error("Error: packet build() failed!\n");
-		return 0;
-	}
+    rc_packet *packet = packet_build(RCON_PID, RCON_EXEC_COMMAND, command);
+    if (packet == NULL) {
+        log_error("Error: packet build() failed!\n");
+        return 0;
+    }
 
-	if (!net_send_packet(sock, packet)) {
-		log_error("Error: net_send_packet() failed!\n");
-		return 0;
-	}
+    if (!net_send_packet(sock, packet)) {
+        log_error("Error: net_send_packet() failed!\n");
+        return 0;
+    }
 
-	// Workaround to handle valve multipacket responses
-	// This one does not require using select()
-	packet = packet_build(0xBADA55, 0xBADA55, "");
-	if (packet == NULL) {
-		log_error("Error: packet build() failed!\n");
-		return 0;
-	}
+    // Workaround to handle valve multipacket responses
+    // This one does not require using select()
+    packet = packet_build(0xBADA55, 0xBADA55, "");
+    if (packet == NULL) {
+        log_error("Error: packet build() failed!\n");
+        return 0;
+    }
 
-	if (!net_send_packet(sock, packet)) {
-		log_error("Error: net_send_packet() failed!\n");
-		return 0;
-	}
+    if (!net_send_packet(sock, packet)) {
+        log_error("Error: net_send_packet() failed!\n");
+        return 0;
+    }
 
-	// initialize stuff for select()
-	fd_set read_fds;
-	FD_ZERO(&read_fds);
-	FD_SET(sock, &read_fds);
+    // initialize stuff for select()
+    fd_set read_fds;
+    FD_ZERO(&read_fds);
+    FD_SET(sock, &read_fds);
 
-	// Set 5 second timeout
-	struct timeval timeout = {0};
-	timeout.tv_sec = 5;
-	timeout.tv_usec = 0;
+    // Set 5 second timeout
+    struct timeval timeout = {0};
+    timeout.tv_sec = 5;
+    timeout.tv_usec = 0;
 
-	int incoming = 0;
+    int incoming = 0;
 
-	do {
-		packet = net_recv_packet(sock);
-		if (packet == NULL) {
-			log_error("Error: net_recv_packet() failed!\n");
-			return 0;
-		}
+    do {
+        packet = net_recv_packet(sock);
+        if (packet == NULL) {
+            log_error("Error: net_recv_packet() failed!\n");
+            return 0;
+        }
 
-		// Check for packet id and multipacket guard id
-		if (packet->id != RCON_PID && packet->id != 0xBADA55) {
-			log_error("Error: invalid packet id!\n");
-			return 0;
-		}
+        // Check for packet id and multipacket guard id
+        if (packet->id != RCON_PID && packet->id != 0xBADA55) {
+            log_error("Error: invalid packet id!\n");
+            return 0;
+        }
 
-		if (packet->id == 0xBADA55) break;
+        if (packet->id == 0xBADA55) break;
 
-		if (flag_silent_mode == false) {
-			if (packet->size > 10)
-				packet_print(packet);
-		}
+        if (flag_silent_mode == false) {
+            if (packet->size > 10)
+                packet_print(packet);
+        }
 
-		int result = select(sock + 1, &read_fds, NULL, NULL, &timeout);
-		if (result == -1) {
-			log_error("Error: select() failed!\n");
-			return 0;
-		}
+        int result = select(sock + 1, &read_fds, NULL, NULL, &timeout);
+        if (result == -1) {
+            log_error("Error: select() failed!\n");
+            return 0;
+        }
 
-		incoming = (result > 0 && FD_ISSET(sock, &read_fds));
-	}
-	while(incoming);
+        incoming = (result > 0 && FD_ISSET(sock, &read_fds));
+    }
+    while(incoming);
 
-	return 1;
+    return 1;
 }
 
 int run_commands(int argc, char *argv[])
 {
-	int i = optind;
+    int i = optind;
 
-	for (;;) {
-		if (!rcon_command(global_rsock, argv[i]))
-			return EXIT_FAILURE;
+    for (;;) {
+        if (!rcon_command(global_rsock, argv[i]))
+            return EXIT_FAILURE;
 
-		i++;
+        i++;
 
-		if (i >= argc)
-			return EXIT_SUCCESS;
+        if (i >= argc)
+            return EXIT_SUCCESS;
 
-		if (flag_wait_seconds > 0) {
-			#ifdef _WIN32
-			Sleep(flag_wait_seconds * 1000);
-			#else
-			sleep(flag_wait_seconds);
-			#endif
-		}
-	}
+        if (flag_wait_seconds > 0) {
+            #ifdef _WIN32
+            Sleep(flag_wait_seconds * 1000);
+            #else
+            sleep(flag_wait_seconds);
+            #endif
+        }
+    }
 }
 
 // terminal mode
 int run_terminal_mode(int sock)
 {
-	char command[MAX_COMMAND_LENGTH] = {0};
+    char command[MAX_COMMAND_LENGTH] = {0};
 
-	puts("Logged in. Press Ctrl-D or Ctrl-C to disconnect.");
+    puts("Logged in. Press Ctrl-D or Ctrl-C to disconnect.");
 
-	while (global_connection_alive) {
-		putchar('>');
-		fflush(stdout);
+    while (global_connection_alive) {
+        putchar('>');
+        fflush(stdout);
 
-		int len = get_line(command, MAX_COMMAND_LENGTH);
-		if (len < 1) continue;
+        int len = get_line(command, MAX_COMMAND_LENGTH);
+        if (len < 1) continue;
 
-		if (len > 0 && global_connection_alive) {
-			if (!rcon_command(sock, command)) {
-				return EXIT_FAILURE;
-			}
-		}
+        if (len > 0 && global_connection_alive) {
+            if (!rcon_command(sock, command)) {
+                return EXIT_FAILURE;
+            }
+        }
 
-		/* Special case for "stop" command to prevent server-side bug.
-		 * https://bugs.mojang.com/browse/MC-154617
-		 *
-		 * NOTE: Not sure if this still a problem?!
-		 */
-		if (global_valve_protocol == false && strcasecmp(command, "stop") == 0) {
-			// Timeout to before checking if connection was closed
-			#ifdef _WIN32
-			Sleep(2 * 1000);
-			#else
-			sleep(2);
-			#endif
+        /* Special case for "stop" command to prevent server-side bug.
+         * https://bugs.mojang.com/browse/MC-154617
+         *
+         * NOTE: Not sure if this still a problem?!
+         */
+        if (global_valve_protocol == false && strcasecmp(command, "stop") == 0) {
+            // Timeout to before checking if connection was closed
+            #ifdef _WIN32
+            Sleep(2 * 1000);
+            #else
+            sleep(2);
+            #endif
 
-			char tmp[1];
-			#ifdef _WIN32
-			// TODO: More Windows side testing!
-			int result = recv(sock, tmp, sizeof(tmp), MSG_PEEK | 0);
-			#else
-			int result = recv(sock, tmp, sizeof(tmp), MSG_PEEK | MSG_DONTWAIT);
-			#endif
-			if (result == 0) {
-				break; // Connection closed
-			}
-			// TODO: Check for return values and errors!
-		}
-	}
+            char tmp[1];
+            #ifdef _WIN32
+            // TODO: More Windows side testing!
+            int result = recv(sock, tmp, sizeof(tmp), MSG_PEEK | 0);
+            #else
+            int result = recv(sock, tmp, sizeof(tmp), MSG_PEEK | MSG_DONTWAIT);
+            #endif
+            if (result == 0) {
+                break; // Connection closed
+            }
+            // TODO: Check for return values and errors!
+        }
+    }
 
-	return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }
 
 #ifdef _WIN32
 char *utf8_getline(char *buf, int size, FILE *stream)
 {
-	// Widechar fgets
-	wchar_t in[MAX_COMMAND_LENGTH] = {0};
+    // Widechar fgets
+    wchar_t in[MAX_COMMAND_LENGTH] = {0};
 
-	wchar_t *result = fgetws(in, MAX_COMMAND_LENGTH, stream);
-	if (result == NULL) {
-		return NULL;
-	}
+    wchar_t *result = fgetws(in, MAX_COMMAND_LENGTH, stream);
+    if (result == NULL) {
+        return NULL;
+    }
 
-	// Calculates UTF-8 buffer size
-	int required_size = WideCharToMultiByte(CP_UTF8, 0, in, -1, NULL, 0, NULL, NULL);
-	if (size < required_size) {
-		// TODO: Proper error handling & reporting
-		return NULL;
-	}
+    // Calculates UTF-8 buffer size
+    int required_size = WideCharToMultiByte(CP_UTF8, 0, in, -1, NULL, 0, NULL, NULL);
+    if (size < required_size) {
+        // TODO: Proper error handling & reporting
+        return NULL;
+    }
 
-	if (WideCharToMultiByte(CP_UTF8, 0, in, -1, buf, size, NULL, NULL) == 0) {
-		// TODO: Proper error handling & reporting
-		return NULL;
-	}
+    if (WideCharToMultiByte(CP_UTF8, 0, in, -1, buf, size, NULL, NULL) == 0) {
+        // TODO: Proper error handling & reporting
+        return NULL;
+    }
 
-	return buf;
+    return buf;
 }
 #endif
 
 void flush_input(void)
 {
-	#ifdef _WIN32
-	FlushConsoleInputBuffer(console_handle);
-	#else
-	tcflush(STDIN_FILENO, TCIFLUSH);
-	#endif
+    #ifdef _WIN32
+    FlushConsoleInputBuffer(console_handle);
+    #else
+    tcflush(STDIN_FILENO, TCIFLUSH);
+    #endif
 }
 
 // gets line from stdin and deals with rubbish left in the input buffer
 int get_line(char *buffer, int bsize)
 {
-	#ifdef _WIN32
-	char *ret = utf8_getline(buffer, bsize, stdin);
-	#else
-	char *ret = fgets(buffer, bsize, stdin);
-	#endif
+    #ifdef _WIN32
+    char *ret = utf8_getline(buffer, bsize, stdin);
+    #else
+    char *ret = fgets(buffer, bsize, stdin);
+    #endif
 
-	flush_input();
+    flush_input();
 
-	if (ret == NULL) {
-		if (ferror(stdin)) {
-			log_error("Error %d: %s\n", errno, strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-		putchar('\n');
-		exit(EXIT_SUCCESS);
-	}
+    if (ret == NULL) {
+        if (ferror(stdin)) {
+            log_error("Error %d: %s\n", errno, strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        putchar('\n');
+        exit(EXIT_SUCCESS);
+    }
 
-	// remove unwanted characters from the buffer
-	buffer[strcspn(buffer, "\r\n")] = '\0';
-	int len = strlen(buffer);
+    // remove unwanted characters from the buffer
+    buffer[strcspn(buffer, "\r\n")] = '\0';
+    int len = strlen(buffer);
 
-#if 0
-	// clean input buffer if needed
-	#ifndef _WIN32
-	if (len == bsize - 1) {
-		int ch;
-		while ((ch = getchar()) != '\n' && ch != EOF);
-	}
-	#endif
-#endif
-
-	return len;
+    return len;
 }
