@@ -33,13 +33,13 @@
 
 #ifdef _WIN32
 	#include <winsock2.h>
-    #include <windows.h>
-    #include <ws2tcpip.h>
-    #include <fcntl.h>
+	#include <windows.h>
+	#include <ws2tcpip.h>
+	#include <fcntl.h>
 	#include <wchar.h>
 #else
-    #include <sys/socket.h>
-    #include <netdb.h>
+	#include <sys/socket.h>
+	#include <netdb.h>
 #endif
 
 #define VERSION "0.8.0"
@@ -61,15 +61,15 @@
 
 // rcon packet structure
 typedef struct {
-    int32_t size;
-    int32_t id;
-    int32_t cmd;
-    uint8_t data[DATA_BUFFSIZE];
-    // ignoring string2 for now
+	int32_t size;
+	int32_t id;
+	int32_t cmd;
+	uint8_t data[DATA_BUFFSIZE];
+	// ignoring string2 for now
 } rc_packet;
 
 // ===================================
-//  FUNCTION DEFINITIONS              
+//  FUNCTION DEFINITIONS
 // ===================================
 
 // Network related functions
@@ -140,9 +140,7 @@ void sighandler(int sig)
 		putchar('\n');
 
 	global_connection_alive = 0;
-	#ifndef _WIN32
-	    exit(EXIT_SUCCESS);
-	#endif
+	exit(EXIT_SUCCESS);
 }
 
 #define MAX_WAIT_TIME 600
@@ -177,7 +175,7 @@ int main(int argc, char *argv[])
 	char *host = getenv("MCRCON_HOST");
 	char *pass = getenv("MCRCON_PASS");
 	char *port = getenv("MCRCON_PORT");
-	
+
 	if (!port) port = "25575";
 	if (!host) host = "localhost";
 
@@ -199,7 +197,7 @@ int main(int argc, char *argv[])
 			case 'r': flag_raw_output = 1;           break;
 			case 'w':
 				flag_wait_seconds = mcrcon_parse_seconds(optarg);
-			break;
+				break;
 
 			case 'v':
 				puts(VER_STR);
@@ -238,6 +236,9 @@ int main(int argc, char *argv[])
 	// Set the output and input code pages to utf-8
 	old_output_codepage = GetConsoleOutputCP();
 	old_input_codepage = GetConsoleCP();
+
+	SetConsoleOutputCP(CP_UTF8);
+	SetConsoleCP(CP_UTF8);
 
 	// Set the file translation mode to UTF16
 	_setmode(_fileno(stdin), _O_U16TEXT);
@@ -291,8 +292,8 @@ void usage(void)
 	puts("Example:\n\t"IN_NAME" -H my.minecraft.server -p password -w 5 \"say Server is restarting!\" save-all stop\n");
 
 	#ifdef _WIN32
-	    puts("Press enter to exit.");
-	    getchar();
+	puts("Press enter to exit.");
+	getchar();
 	#endif
 
 	exit(EXIT_SUCCESS);
@@ -319,10 +320,10 @@ void net_init_WSA(void)
 void net_close(int sd)
 {
 	#ifdef _WIN32
-		closesocket(sd);
-		WSACleanup();
+	closesocket(sd);
+	WSACleanup();
 	#else
-		close(sd);
+	close(sd);
 	#endif
 }
 
@@ -341,16 +342,16 @@ int net_connect(const char *host, const char *port)
 	hints.ai_protocol = IPPROTO_TCP;
 
 	#ifdef _WIN32
-	  net_init_WSA();
+	net_init_WSA();
 	#endif
 
 	int ret = getaddrinfo(host, port, &hints, &server_info);
 	if (ret != 0) {
 		log_error("Name resolution failed.\n");
 		#ifdef _WIN32
-			log_error("Error %d: %s", ret, gai_strerror(ret));
+		log_error("Error %d: %s", ret, gai_strerror(ret));
 		#else
-			log_error("Error %d: %s\n", ret, gai_strerror(ret));
+		log_error("Error %d: %s\n", ret, gai_strerror(ret));
 		#endif
 
 		exit(EXIT_FAILURE);
@@ -376,7 +377,7 @@ int net_connect(const char *host, const char *port)
 		/* TODO (Tiiffi): Check why windows does not report errors */
 		log_error("Connection failed.\n");
 		#ifndef _WIN32
-			log_error("Error %d: %s\n", errno, strerror(errno));
+		log_error("Error %d: %s\n", errno, strerror(errno));
 		#endif
 
 		freeaddrinfo(server_info);
@@ -491,9 +492,9 @@ void print_color(int color)
 		else return;
 
 		#ifndef _WIN32
-			fputs(colors[color], stdout);
+		fputs(colors[color], stdout);
 		#else
-			SetConsoleTextAttribute(console_handle, color);
+		SetConsoleTextAttribute(console_handle, color);
 		#endif
 	}
 }
@@ -502,20 +503,32 @@ void print_color(int color)
 void packet_print(rc_packet *packet)
 {
 	uint8_t *data = packet->data;
+	int i;
 
 	if (flag_raw_output == 1) {
 		fputs((char *) data, stdout);
 		return;
 	}
 
-	int i;
+	// Newline fix for Minecraft
+	if (global_valve_protocol == false) {
+		const char test[] = "Unknown or incomplete command, see below for error";
+		size_t test_size = sizeof test - 1;
+		if (strncmp((char *) data, test, test_size) == 0) {
+			fwrite(data, test_size, 1, stdout);
+			putchar('\n');
+			data = &data[test_size];
+		}
+	}
+
 	int default_color = 0;
 
 	#ifdef _WIN32
-		CONSOLE_SCREEN_BUFFER_INFO console_info;
-		if (GetConsoleScreenBufferInfo(console_handle, &console_info) != 0) {
-			default_color = console_info.wAttributes + 0x30;
-		} else default_color = 0x37;
+	CONSOLE_SCREEN_BUFFER_INFO console_info;
+	if (GetConsoleScreenBufferInfo(console_handle, &console_info) != 0) {
+		default_color = console_info.wAttributes + 0x30;
+	}
+	else default_color = 0x37;
 	#endif
 
 	bool slash = false;
@@ -536,6 +549,7 @@ void packet_print(rc_packet *packet)
 			continue;
 		}
 
+		// Add missing slashes
 		if (colors_detected == false && global_minecraft_newline_fix && data[i] == '/') {
 			slash ? putchar('\n') : (slash = true);
 		}
@@ -587,7 +601,7 @@ bool rcon_auth(int sock, char *passwd)
 		return 0; // send failed
 	}
 
-receive:
+	receive:
 	packet = net_recv_packet(sock);
 	if (packet == NULL)
 		return 0;
@@ -662,7 +676,7 @@ int rcon_command(int sock, char *command)
 
 		if (flag_silent_mode == false) {
 			if (packet->size > 10)
-			packet_print(packet);
+				packet_print(packet);
 		}
 
 		int result = select(sock + 1, &read_fds, NULL, NULL, &timeout);
@@ -693,9 +707,9 @@ int run_commands(int argc, char *argv[])
 
 		if (flag_wait_seconds > 0) {
 			#ifdef _WIN32
-				Sleep(flag_wait_seconds * 1000);
+			Sleep(flag_wait_seconds * 1000);
 			#else
-				sleep(flag_wait_seconds);
+			sleep(flag_wait_seconds);
 			#endif
 		}
 	}
@@ -713,8 +727,8 @@ int run_terminal_mode(int sock)
 		fflush(stdout);
 
 		int len = get_line(command, MAX_COMMAND_LENGTH);
-		if (len < 1) continue; 
-	
+		if (len < 1) continue;
+
 		if (strcasecmp(command, "Q") == 0) break;
 
 		if (len > 0 && global_connection_alive) {
@@ -725,7 +739,7 @@ int run_terminal_mode(int sock)
 
 		/* Special case for "stop" command to prevent server-side bug.
 		 * https://bugs.mojang.com/browse/MC-154617
-		 * 
+		 *
 		 * NOTE: This is hacky workaround which should be handled better to
 		 *       ensure compatibility with other servers using source RCON.
 		 * NOTE: strcasecmp() is POSIX function.
@@ -739,12 +753,16 @@ int run_terminal_mode(int sock)
 			#endif
 
 			char tmp[1];
+			#ifdef _WIN32
+			// TODO: More Windows side testing!
+			int result = recv(sock, tmp, sizeof(tmp), MSG_PEEK | 0);
+			#else
 			int result = recv(sock, tmp, sizeof(tmp), MSG_PEEK | MSG_DONTWAIT);
+			#endif
 			if (result == 0) {
-				// Connection closed
-				break;
+				break; // Connection closed
 			}
-			// TODO: Check for errors too!
+			// TODO: Check for return values and errors!
 		}
 	}
 
@@ -761,6 +779,9 @@ char *utf8_getline(char *buf, int size, FILE *stream)
 	if (result == NULL) {
 		return NULL;
 	}
+
+	wint_t ch;
+	while ((ch = getwchar()) != L'\n' && ch != WEOF);
 
 	// Calculates UTF-8 buffer size
 	int required_size = WideCharToMultiByte(CP_UTF8, 0, in, -1, NULL, 0, NULL, NULL);
@@ -781,7 +802,11 @@ char *utf8_getline(char *buf, int size, FILE *stream)
 // gets line from stdin and deals with rubbish left in the input buffer
 int get_line(char *buffer, int bsize)
 {
+	#ifdef _WIN32
+	char *ret = utf8_getline(buffer, bsize, stdin);
+	#else
 	char *ret = fgets(buffer, bsize, stdin);
+	#endif
 	if (ret == NULL) {
 		if (ferror(stdin)) {
 			log_error("Error %d: %s\n", errno, strerror(errno));
@@ -793,14 +818,15 @@ int get_line(char *buffer, int bsize)
 
 	// remove unwanted characters from the buffer
 	buffer[strcspn(buffer, "\r\n")] = '\0';
-
 	int len = strlen(buffer);
 
-	// clean input buffer if needed 
+	// clean input buffer if needed
+	#ifndef _WIN32
 	if (len == bsize - 1) {
 		int ch;
 		while ((ch = getchar()) != '\n' && ch != EOF);
 	}
+	#endif
 
 	return len;
 }
