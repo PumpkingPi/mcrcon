@@ -39,7 +39,9 @@
 	#include <wchar.h>
 #else
 	#include <sys/socket.h>
+	#include <sys/select.h>
 	#include <netdb.h>
+	#include <termios.h>
 #endif
 
 #define VERSION "0.8.0"
@@ -720,7 +722,7 @@ int run_terminal_mode(int sock)
 {
 	char command[MAX_COMMAND_LENGTH] = {0};
 
-	puts("Logged in. Press Ctrl-D or Ctrl-C to disconnect.\n");
+	puts("Logged in. Press Ctrl-D or Ctrl-C to disconnect.");
 
 	while (global_connection_alive) {
 		putchar('>');
@@ -776,11 +778,6 @@ char *utf8_getline(char *buf, int size, FILE *stream)
 		return NULL;
 	}
 
-	// TODO: Test if this is even required.
-
-	wint_t ch;
-	while ((ch = getwchar()) != L'\n' && ch != WEOF);
-
 	// Calculates UTF-8 buffer size
 	int required_size = WideCharToMultiByte(CP_UTF8, 0, in, -1, NULL, 0, NULL, NULL);
 	if (size < required_size) {
@@ -797,6 +794,15 @@ char *utf8_getline(char *buf, int size, FILE *stream)
 }
 #endif
 
+void flush_input(void)
+{
+	#ifdef _WIN32
+	FlushConsoleInputBuffer(console_handle);
+	#else
+	tcflush(STDIN_FILENO, TCIFLUSH);
+	#endif
+}
+
 // gets line from stdin and deals with rubbish left in the input buffer
 int get_line(char *buffer, int bsize)
 {
@@ -805,6 +811,9 @@ int get_line(char *buffer, int bsize)
 	#else
 	char *ret = fgets(buffer, bsize, stdin);
 	#endif
+
+	flush_input();
+
 	if (ret == NULL) {
 		if (ferror(stdin)) {
 			log_error("Error %d: %s\n", errno, strerror(errno));
@@ -818,6 +827,7 @@ int get_line(char *buffer, int bsize)
 	buffer[strcspn(buffer, "\r\n")] = '\0';
 	int len = strlen(buffer);
 
+#if 0
 	// clean input buffer if needed
 	#ifndef _WIN32
 	if (len == bsize - 1) {
@@ -825,6 +835,7 @@ int get_line(char *buffer, int bsize)
 		while ((ch = getchar()) != '\n' && ch != EOF);
 	}
 	#endif
+#endif
 
 	return len;
 }
