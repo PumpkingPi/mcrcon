@@ -2,10 +2,11 @@
 
 ###### 0.8.0
  - Implement support for multipacket responses
- - Add support to Valve style rcon authentication
+ - Add support for Valve style rcon authentication
+ - Add experimental UTF-8 support for Windows
  - Change maximum packet size to correct value (4096 -> 4106)
- - Attempt to add missing newlines in Minecraft servers
-    * Currently implemented only for the 'help' command
+ - Attempt to add missing newlines in bugged Minecraft servers
+    * Implemented for responses to the 'help' command and unknown commands
  - Print auth failed message to stderr instead of stdout
  - Fail immediately if received packet size is out of spec
  - Return proper exit code from run_terminal_mode()
