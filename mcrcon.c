@@ -57,6 +57,8 @@
 #define MAX_PACKET_SIZE		4106 // id (4) + cmd (4) + DATA_BUFFSIZE
 #define MIN_PACKET_SIZE		10   // id (4) + cmd (4) + two empty strings (2)
 
+#define MAX_WAIT_TIME 600
+
 #define log_error(fmt, ...) fprintf(stderr, fmt,  ##__VA_ARGS__);
 
 // rcon packet structure
@@ -142,8 +144,6 @@ void sighandler(int sig)
 	global_connection_alive = 0;
 	exit(EXIT_SUCCESS);
 }
-
-#define MAX_WAIT_TIME 600
 
 unsigned int mcrcon_parse_seconds(char *str)
 {
@@ -549,7 +549,7 @@ void packet_print(rc_packet *packet)
 			continue;
 		}
 
-		// Add missing slashes
+		// Add missing newlines
 		if (colors_detected == false && global_minecraft_newline_fix && data[i] == '/') {
 			slash ? putchar('\n') : (slash = true);
 		}
@@ -720,7 +720,7 @@ int run_terminal_mode(int sock)
 {
 	char command[MAX_COMMAND_LENGTH] = {0};
 
-	puts("Logged in.\nType 'Q' or press Ctrl-D / Ctrl-C to disconnect.");
+	puts("Logged in. Press Ctrl-D or Ctrl-C to disconnect.\n");
 
 	while (global_connection_alive) {
 		putchar('>');
@@ -728,8 +728,6 @@ int run_terminal_mode(int sock)
 
 		int len = get_line(command, MAX_COMMAND_LENGTH);
 		if (len < 1) continue;
-
-		if (strcasecmp(command, "Q") == 0) break;
 
 		if (len > 0 && global_connection_alive) {
 			if (!rcon_command(sock, command)) {
@@ -740,9 +738,7 @@ int run_terminal_mode(int sock)
 		/* Special case for "stop" command to prevent server-side bug.
 		 * https://bugs.mojang.com/browse/MC-154617
 		 *
-		 * NOTE: This is hacky workaround which should be handled better to
-		 *       ensure compatibility with other servers using source RCON.
-		 * NOTE: strcasecmp() is POSIX function.
+		 * NOTE: Not sure if this still a problem?!
 		 */
 		if (global_valve_protocol == false && strcasecmp(command, "stop") == 0) {
 			// Timeout to before checking if connection was closed
@@ -779,6 +775,8 @@ char *utf8_getline(char *buf, int size, FILE *stream)
 	if (result == NULL) {
 		return NULL;
 	}
+
+	// TODO: Test if this is even required.
 
 	wint_t ch;
 	while ((ch = getwchar()) != L'\n' && ch != WEOF);
