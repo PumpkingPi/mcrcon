@@ -4,6 +4,8 @@
  - Implement support for multipacket responses
  - Add support to Valve style rcon authentication
  - Change maximum packet size to correct value (4096 -> 4106)
+ - Attempt to add missing newlines in Minecraft servers
+    * Currently implemented only for the 'help' command
  - Print auth failed message to stderr instead of stdout
  - Fail immediately if received packet size is out of spec
  - Return proper exit code from run_terminal_mode()
@@ -12,7 +14,7 @@
 ###### 0.7.2
  - Quit gracefully when Ctrl-D or Ctrl+C is pressed
  - Remove "exit" and "quit" as quitting commands
-    * these are actual rcon commands on some servers
+    * These are actual rcon commands on some servers
  - Suppress compiler warning (strncpy)
  - Fix erroneous string length in packet building function
  - Fix typo in ANSI escape sequence for LCYAN
