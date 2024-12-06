@@ -104,6 +104,7 @@ static int  flag_disable_colors = 0;
 static int  flag_wait_seconds = 0;
 static int  global_connection_alive = 1;
 static bool global_valve_protocol = false;
+static bool global_minecraft_newline_fix = false;
 static int  global_rsock;
 
 #ifdef _WIN32
@@ -493,34 +494,37 @@ void packet_print(rc_packet *packet)
 		} else default_color = 0x37;
 	#endif
 
-	// colors enabled so try to handle the bukkit colors for terminal
-	if (flag_disable_colors == 0) {
-		for (i = 0; data[i] != 0; ++i) {
-			if (data[i] == 0x0A) print_color(default_color);
-			else if(data[i] == 0xc2 && data[i + 1] == 0xa7) {
-				i += 2;
+	bool slash = false;
+	bool colors_detected = false;
+
+	for (i = 0; data[i] != 0; ++i)
+	{
+		if (data[i] == 0x0A) {
+			print_color(default_color);
+		}
+		else if(data[i] == 0xc2 && data[i + 1] == 0xa7) {
+			// Disable new line fixes if Bukkit colors are detected
+			colors_detected = true;
+			i += 2;
+			if (flag_disable_colors == 0) {
 				print_color(data[i]);
-				continue;
 			}
-			putchar(data[i]);
+			continue;
 		}
-		print_color(default_color); // cancel coloring
-	}
-	// strip colors
-	else {
-		for (i = 0; data[i] != 0; ++i) {
-			if (data[i] == 0xc2 && data[i + 1] == 0xa7) {
-				i += 2;
-				continue;
-			}	
-			putchar(data[i]);
+
+		if (colors_detected == false && global_minecraft_newline_fix && data[i] == '/') {
+			slash ? putchar('\n') : (slash = true);
 		}
+
+		putchar(data[i]);
 	}
+	print_color(default_color); // cancel coloring
 
 	// print newline if string has no newline
-	if (data[i - 1] != 10 && data[i - 1] != 13) {
+	if (data[i - 1] != '\n') {
 		putchar('\n');
 	}
+
 	fflush(stdout);
 }
 
@@ -578,6 +582,9 @@ receive:
 
 int rcon_command(int sock, char *command)
 {
+	if (global_valve_protocol == false && strcasecmp(command, "help") == 0)
+		global_minecraft_newline_fix = true;
+
 	rc_packet *packet = packet_build(RCON_PID, RCON_EXEC_COMMAND, command);
 	if (packet == NULL) {
 		log_error("Error: packet build() failed!\n");
@@ -629,7 +636,7 @@ int rcon_command(int sock, char *command)
 
 		if (packet->id == 0xBADA55) break;
 
-		if (!flag_silent_mode) {
+		if (flag_silent_mode == false) {
 			if (packet->size > 10)
 			packet_print(packet);
 		}
