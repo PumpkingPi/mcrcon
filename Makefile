@@ -15,7 +15,7 @@ RM = rm -v -f
 
 CC ?= gcc
 CFLAGS = -std=gnu99 -Wall -Wextra -Wpedantic -Wno-gnu-zero-variadic-macro-arguments -O2
-EXTRAFLAGS ?= -fstack-protector-all
+EXTRAFLAGS ?= -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE -pie -Wl,-z,relro -Wl,-z,now -fno-common
 
 ifeq ($(OS), Windows_NT)
 	LINKER = -lws2_32
