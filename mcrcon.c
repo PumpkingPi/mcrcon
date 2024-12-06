@@ -31,11 +31,12 @@
 #include <errno.h>
 #include <unistd.h>
 
-
 #ifdef _WIN32
 	#include <winsock2.h>
     #include <windows.h>
     #include <ws2tcpip.h>
+    #include <fcntl.h>
+	#include <wchar.h>
 #else
     #include <sys/socket.h>
     #include <netdb.h>
@@ -108,8 +109,12 @@ static bool global_minecraft_newline_fix = false;
 static int  global_rsock;
 
 #ifdef _WIN32
-  // console coloring on windows
-  HANDLE console_handle;
+// console coloring on windows
+HANDLE console_handle;
+
+// console code pages
+UINT old_output_codepage;
+UINT old_input_codepage;
 #endif
 
 // safety stuff (windows is still misbehaving)
@@ -117,6 +122,15 @@ void exit_proc(void)
 {
 	if (global_rsock != -1)
 		net_close(global_rsock);
+
+	#ifdef _WIN32
+	// Restore previous code pages
+	SetConsoleOutputCP(old_output_codepage);
+	SetConsoleCP(old_input_codepage);
+
+	// Set back to binary mode
+	_setmode(_fileno(stdin), _O_BINARY);
+	#endif
 }
 
 // TODO: check exact windows and linux behaviour
@@ -216,10 +230,17 @@ int main(int argc, char *argv[])
 	signal(SIGINT, &sighandler);
 
 	#ifdef _WIN32
-		net_init_WSA();
-		console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
-		if (console_handle == INVALID_HANDLE_VALUE)
-			console_handle = NULL;
+	net_init_WSA();
+	console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+	if (console_handle == INVALID_HANDLE_VALUE)
+		console_handle = NULL;
+
+	// Set the output and input code pages to utf-8
+	old_output_codepage = GetConsoleOutputCP();
+	old_input_codepage = GetConsoleCP();
+
+	// Set the file translation mode to UTF16
+	_setmode(_fileno(stdin), _O_U16TEXT);
 	#endif
 
 	// open socket
@@ -386,6 +407,9 @@ bool net_send_packet(int sd, rc_packet *packet)
 	return true;
 }
 
+
+// TODO: Fix the wonky behaviour when server quit/exit/stop/close
+//       command is issued. Client should close gracefully without errors.
 rc_packet *net_recv_packet(int sd)
 {
 	int32_t psize;
@@ -706,13 +730,53 @@ int run_terminal_mode(int sock)
 		 *       ensure compatibility with other servers using source RCON.
 		 * NOTE: strcasecmp() is POSIX function.
 		 */
-		if (strcasecmp(command, "stop") == 0) {
-			break;
+		if (global_valve_protocol == false && strcasecmp(command, "stop") == 0) {
+			// Timeout to before checking if connection was closed
+			#ifdef _WIN32
+			Sleep(2 * 1000);
+			#else
+			sleep(2);
+			#endif
+
+			char tmp[1];
+			int result = recv(sock, tmp, sizeof(tmp), MSG_PEEK | MSG_DONTWAIT);
+			if (result == 0) {
+				// Connection closed
+				break;
+			}
+			// TODO: Check for errors too!
 		}
 	}
 
 	return EXIT_SUCCESS;
 }
+
+#ifdef _WIN32
+char *utf8_getline(char *buf, int size, FILE *stream)
+{
+	// Widechar fgets
+	wchar_t in[MAX_COMMAND_LENGTH] = {0};
+
+	wchar_t *result = fgetws(in, MAX_COMMAND_LENGTH, stream);
+	if (result == NULL) {
+		return NULL;
+	}
+
+	// Calculates UTF-8 buffer size
+	int required_size = WideCharToMultiByte(CP_UTF8, 0, in, -1, NULL, 0, NULL, NULL);
+	if (size < required_size) {
+		// TODO: Proper error handling & reporting
+		return NULL;
+	}
+
+	if (WideCharToMultiByte(CP_UTF8, 0, in, -1, buf, size, NULL, NULL) == 0) {
+		// TODO: Proper error handling & reporting
+		return NULL;
+	}
+
+	return buf;
+}
+#endif
 
 // gets line from stdin and deals with rubbish left in the input buffer
 int get_line(char *buffer, int bsize)
