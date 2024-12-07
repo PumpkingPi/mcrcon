@@ -1,13 +1,17 @@
 Building and installing
 -----------------------
 
-#### Requirements & dependencies:
+### Prerequisites
 - GCC compatible compiler
-- POSIX getopt support from **<unistd.h>**
+- make
+- POSIX.1 support
+   * getopt()
+   * strcasecmp()
+   * tcflush()
 
 ---
 
-#### Compiling
+### Compiling
 
     cc -std=gnu99 -Wpedantic -Wall -Wextra -Wno-gnu-zero-variadic-macro-arguments -O2 -o mcrcon mcrcon.c
     
