@@ -8,7 +8,6 @@ Building and installing
 - POSIX.1 support
    * getopt()
    * strcasecmp()
-   * tcflush()
 
 ---
 
