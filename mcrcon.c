@@ -38,10 +38,10 @@
     #include <fcntl.h>
     #include <wchar.h>
 #else
+    #include <stdio_ext.h>
     #include <sys/socket.h>
     #include <sys/select.h>
     #include <netdb.h>
-    #include <termios.h>
 #endif
 
 #define VERSION "0.8.0"
@@ -794,14 +794,17 @@ char *utf8_getline(char *buf, int size, FILE *stream)
 }
 #endif
 
+/*
 void flush_input(void)
 {
     #ifdef _WIN32
-    FlushConsoleInputBuffer(console_handle);
+    // NOTE: Undefined behaviour in C standard but Windows allows it
+    fflush(stdin);
     #else
-    tcflush(STDIN_FILENO, TCIFLUSH);
+    __fpurge(stdin);
     #endif
 }
+*/
 
 // gets line from stdin and deals with rubbish left in the input buffer
 int get_line(char *buffer, int bsize)
@@ -811,8 +814,6 @@ int get_line(char *buffer, int bsize)
     #else
     char *ret = fgets(buffer, bsize, stdin);
     #endif
-
-    flush_input();
 
     if (ret == NULL) {
         if (ferror(stdin)) {
@@ -825,7 +826,17 @@ int get_line(char *buffer, int bsize)
 
     // remove unwanted characters from the buffer
     buffer[strcspn(buffer, "\r\n")] = '\0';
+
+#ifdef _WIN32
+    // NOTE: Undefined behaviour in C standard but Windows allows it
+    fflush(stdin);
+#else
     int len = strlen(buffer);
+    if (len == bsize - 1) {
+        int ch;
+        while ((ch = getchar()) != '\n' && ch != EOF);
+    }
+#endif
 
     return len;
 }
