@@ -6,7 +6,7 @@
  - Add experimental UTF-8 support for Windows
  - Change maximum packet size to correct value (4096 -> 4106)
  - Attempt to add missing newlines in bugged Minecraft servers
-    * Implemented for responses to the 'help' command and unknown commands
+    * Implemented for responses to the 'help' command and "Unknown or incomplete.." commands
  - Print auth failed message to stderr instead of stdout
  - Fail immediately if received packet size is out of spec
  - Return proper exit code from run_terminal_mode()

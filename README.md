@@ -1,9 +1,8 @@
 # mcrcon
 
-mcrcon is a command-line [rcon](https://developer.valvesoftware.com/wiki/Source_RCON_Protocol) client intended for remote server administration and maintenance automation.
+mcrcon is a command-line [RCON](https://developer.valvesoftware.com/wiki/Source_RCON_Protocol) client designed for remote server administration and automation of maintenance tasks.
 
-Though originally developed for Minecraft servers, it also works with a variety of other servers using the Valve or Minecraft-style rcon protocol.
-
+Originally written for Minecraft servers, this tool is also compatible with other servers using the Valve- or Minecraft-style RCON protocol.
 
 ---
 
@@ -11,7 +10,7 @@ Though originally developed for Minecraft servers, it also works with a variety 
 
 ##### Binary releases
 
-Pre-built binaries are provided for Linux and Windows: https://github.com/Tiiffi/mcrcon/releases/latest
+Pre-built binaries for Linux and Windows: https://github.com/Tiiffi/mcrcon/releases/latest
 
 ##### Via package manager
 See https://pkgs.org/download/mcrcon and https://repology.org/project/mcrcon/packages for available packages in various Linux distros (note that some packages might be outdated).
@@ -99,7 +98,7 @@ mcrcon -H my.minecraft.server -p password -w 5 "say Server is restarting!" save-
 >- Issue Description: Clearly describe the problem you're encountering and the expected behavior.
 >- Steps to reproduce
 >
->If you're tech-savvy, consider providing a packet capture file (PCAP). Remember to use a fake password.
+>Consider providing a packet capture file (PCAP) if possible. Remember to use a bogus password.
 
 ---
 
