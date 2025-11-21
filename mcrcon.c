@@ -30,6 +30,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -456,6 +457,69 @@ rc_packet *net_recv_packet(int sd)
     return &packet;
 }
 
+/* NOTE: At least Bukkit/Spigot servers are sending formatting via rcon but not sure how common this
+ * behaviour is. This implementation tries to print colors but is omitting "bold" in "bright" colors
+ * because bold tag should be manually reset and Bukkit/Spigot is not doing this.
+ * References: https://minecraft.fandom.com/wiki/Formatting_codes
+ *             https://en.wikipedia.org/wiki/ANSI_escape_code
+ */
+void set_color(int c)
+{
+    c = tolower(c);
+
+    #ifdef _WIN32
+
+    // Map color Minecraft color codes to WinAPI colors
+    if (c >= '0' && c <= '9') {
+        c -= '0';
+    }
+    else if (c >= 'a' && c <= 'f') {
+        c -= 87;
+    }
+    else return;
+
+    SetConsoleTextAttribute(console_handle, c);
+
+    #else
+
+    /* NOTE: Using "bold" for bright colors for now. This is not correct exactly
+     *       because it resets other formattings and must be reseted manually.
+     *       This should match Bukkit/Spigot server console output though
+     */
+    const char *ansi_escape;
+    switch (c)
+    {
+        case '0': ansi_escape = "\033[30m";   break; // Black
+        case '1': ansi_escape = "\033[34m";   break; // Blue
+        case '2': ansi_escape = "\033[32m";   break; // Green
+        case '3': ansi_escape = "\033[36m";   break; // Cyan
+        case '4': ansi_escape = "\033[31m";   break; // Red
+        case '5': ansi_escape = "\033[35m";   break; // Magenta
+        case '6': ansi_escape = "\033[33m";   break; // Yellow
+        case '7': ansi_escape = "\033[37m";   break; // White
+        case '8': ansi_escape = "\033[1;90m"; break; // Bright black (gray)
+        case '9': ansi_escape = "\033[1;94m"; break; // Bright blue
+        case 'a': ansi_escape = "\033[1;92m"; break; // Bright green
+        case 'b': ansi_escape = "\033[1;96m"; break; // Bright cyan
+        case 'c': ansi_escape = "\033[1;91m"; break; // Bright red
+        case 'd': ansi_escape = "\033[1;95m"; break; // Bright magenta
+        case 'e': ansi_escape = "\033[1;93m"; break; // Bright yellow
+        case 'f': ansi_escape = "\033[1;97m"; break; // Bright white
+        case 'k': ansi_escape = "\033[08m";   break; // Concealed text
+        case 'l': ansi_escape = "\033[01m";   break; // Bold text
+        case 'm': ansi_escape = "\033[09m";   break; // Strikethrough text
+        case 'n': ansi_escape = "\033[03m";   break; // Italic text
+        case 'o': ansi_escape = "\033[04m";   break; // Underlined text
+        case  0: // fallthrough
+        case 'r': ansi_escape = "\033[00m";   break; // Reset all attributes
+        default: return;
+
+    }
+    fputs(ansi_escape, stdout);
+    #endif
+}
+
+// NOTE: Old version!
 void print_color(int color)
 {
     // sh compatible color array
@@ -480,11 +544,11 @@ void print_color(int color)
         "\033[4m"       /* 16 UNDERLINE 0x6e */
     };
 
-    if (color == 0 || color == 0x72) {
+    if (color == 0 || color == 'r') {
         fputs("\033[0m", stdout); // cancel color
     }
     else
-        #endif
+    #endif
     {
         if (color >= 0x61 && color <= 0x66) color -= 0x57;
         else if (color >= 0x30 && color <= 0x39)
@@ -497,7 +561,7 @@ void print_color(int color)
         fputs(colors[color], stdout);
         #else
         SetConsoleTextAttribute(console_handle, color);
-        #endif
+    #endif
     }
 }
 
@@ -523,7 +587,7 @@ void packet_print(rc_packet *packet)
         }
     }
 
-    int default_color = 0;
+    int default_color = 'r';
 
     #ifdef _WIN32
     CONSOLE_SCREEN_BUFFER_INFO console_info;
@@ -538,15 +602,14 @@ void packet_print(rc_packet *packet)
 
     for (i = 0; data[i] != 0; ++i)
     {
-        if (data[i] == 0x0A) {
-            print_color(default_color);
-        }
-        else if(data[i] == 0xc2 && data[i + 1] == 0xa7) {
+        // Check for '§' (utf-8 section sign). Bukkit is using this for colors.
+        if(data[i] == 0xc2 && data[i + 1] == 0xa7) {
             // Disable new line fixes if Bukkit colors are detected
             colors_detected = true;
             i += 2;
             if (flag_disable_colors == 0) {
-                print_color(data[i]);
+                //print_color(data[i]);
+                set_color(data[i]);
             }
             continue;
         }
@@ -558,7 +621,9 @@ void packet_print(rc_packet *packet)
 
         putchar(data[i]);
     }
-    print_color(default_color); // cancel coloring
+
+    set_color(default_color); // reset color
+    //print_color(default_color); // cancel coloring
 
     // print newline if string has no newline
     if (data[i - 1] != '\n') {
@@ -770,7 +835,6 @@ int run_terminal_mode(int sock)
 #ifdef _WIN32
 char *utf8_getline(char *buf, int size, FILE *stream)
 {
-    // Widechar fgets
     wchar_t in[MAX_COMMAND_LENGTH] = {0};
 
     wchar_t *result = fgetws(in, MAX_COMMAND_LENGTH, stream);
@@ -778,33 +842,26 @@ char *utf8_getline(char *buf, int size, FILE *stream)
         return NULL;
     }
 
-    // Calculates UTF-8 buffer size
+    size_t length = wcslen(in);
+    if (length > 0 && in[length - 1] == L'\n') {
+        in[length - 1] = L'\0';
+    }
+
+    // Calculate UTF-8 buffer size
     int required_size = WideCharToMultiByte(CP_UTF8, 0, in, -1, NULL, 0, NULL, NULL);
-    if (size < required_size) {
-        // TODO: Proper error handling & reporting
-        return NULL;
+    if (required_size > size || required_size == 0) {
+        log_error("Widechar to UTF-8 conversion failed.\n");
+        exit(EXIT_FAILURE);
     }
 
     if (WideCharToMultiByte(CP_UTF8, 0, in, -1, buf, size, NULL, NULL) == 0) {
-        // TODO: Proper error handling & reporting
-        return NULL;
+        log_error("Widechar to UTF-8 conversion failed.\n");
+        exit(EXIT_FAILURE);
     }
 
     return buf;
 }
 #endif
-
-/*
-void flush_input(void)
-{
-    #ifdef _WIN32
-    // NOTE: Undefined behaviour in C standard but Windows allows it
-    fflush(stdin);
-    #else
-    __fpurge(stdin);
-    #endif
-}
-*/
 
 // gets line from stdin and deals with rubbish left in the input buffer
 int get_line(char *buffer, int bsize)
@@ -820,23 +877,19 @@ int get_line(char *buffer, int bsize)
             log_error("Error %d: %s\n", errno, strerror(errno));
             exit(EXIT_FAILURE);
         }
+        // EOF
         putchar('\n');
         exit(EXIT_SUCCESS);
     }
 
     // remove unwanted characters from the buffer
     buffer[strcspn(buffer, "\r\n")] = '\0';
-
-#ifdef _WIN32
-    // NOTE: Undefined behaviour in C standard but Windows allows it
-    fflush(stdin);
-#else
     int len = strlen(buffer);
+
     if (len == bsize - 1) {
         int ch;
         while ((ch = getchar()) != '\n' && ch != EOF);
     }
-#endif
 
     return len;
 }
