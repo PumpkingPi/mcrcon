@@ -616,19 +616,19 @@ void packet_print(rc_packet *packet)
 
         // Add missing newlines
         if (colors_detected == false && global_minecraft_newline_fix && data[i] == '/') {
-            slash ? putchar('\n') : (slash = true);
+            if (data[i - 1] != '\n')
+                slash ? putchar('\n') : (slash = true);
         }
 
         putchar(data[i]);
     }
 
     set_color(default_color); // reset color
-    //print_color(default_color); // cancel coloring
 
     // print newline if string has no newline
-    if (data[i - 1] != '\n') {
-        putchar('\n');
-    }
+    // if (data[i - 1] != '\n') {
+    //      putchar('\n');
+    // }
 
     fflush(stdout);
 }
@@ -739,7 +739,11 @@ int rcon_command(int sock, char *command)
             return 0;
         }
 
-        if (packet->id == 0xBADA55) break;
+        if (packet->id == 0xBADA55) {
+            // Print newline after receiving multipacket guard packet
+            putchar('\n');
+            break;
+        }
 
         if (flag_silent_mode == false) {
             if (packet->size > 10)
