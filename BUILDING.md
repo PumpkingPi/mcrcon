@@ -4,10 +4,10 @@ Building and installing
 ### Prerequisites
 
 - GCC compatible compiler
-- make
-- POSIX.1 support
+- Support for POSIX functions:
    * getopt()
    * strcasecmp()
+- make (optional)
 
 ---
 
