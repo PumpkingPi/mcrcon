@@ -88,9 +88,7 @@ rc_packet*  net_recv_packet(int sd);
 
 // Misc stuff
 void        usage(void);
-#ifndef _WIN32
-void        print_color(int color);
-#endif
+void        set_color(int c);
 int         get_line(char *buffer, int len);
 int         run_terminal_mode(int sock);
 int         run_commands(int argc, char *argv[]);
@@ -245,6 +243,10 @@ int main(int argc, char *argv[])
 
     // Set the file translation mode to UTF16
     _setmode(_fileno(stdin), _O_U16TEXT);
+
+    // Set stdout/stderr to binary mode to avoid newline translation confusion
+    _setmode(_fileno(stdout), _O_BINARY);
+    _setmode(_fileno(stderr), _O_BINARY);
     #endif
 
     // open socket
@@ -519,52 +521,6 @@ void set_color(int c)
     #endif
 }
 
-// NOTE: Old version!
-void print_color(int color)
-{
-    // sh compatible color array
-    #ifndef _WIN32
-    char *colors[] = {
-        "\033[0;30m",   /* 00 BLACK     0x30 */
-        "\033[0;34m",   /* 01 BLUE      0x31 */
-        "\033[0;32m",   /* 02 GREEN     0x32 */
-        "\033[0;36m",   /* 03 CYAN      0x33 */
-        "\033[0;31m",   /* 04 RED       0x34 */
-        "\033[0;35m",   /* 05 PURPLE    0x35 */
-        "\033[0;33m",   /* 06 GOLD      0x36 */
-        "\033[0;37m",   /* 07 GREY      0x37 */
-        "\033[0;1;30m", /* 08 DGREY     0x38 */
-        "\033[0;1;34m", /* 09 LBLUE     0x39 */
-        "\033[0;1;32m", /* 10 LGREEN    0x61 */
-        "\033[0;1;36m", /* 11 LCYAN     0x62 */
-        "\033[0;1;31m", /* 12 LRED      0x63 */
-        "\033[0;1;35m", /* 13 LPURPLE   0x64 */
-        "\033[0;1;33m", /* 14 YELLOW    0x65 */
-        "\033[0;1;37m", /* 15 WHITE     0x66 */
-        "\033[4m"       /* 16 UNDERLINE 0x6e */
-    };
-
-    if (color == 0 || color == 'r') {
-        fputs("\033[0m", stdout); // cancel color
-    }
-    else
-    #endif
-    {
-        if (color >= 0x61 && color <= 0x66) color -= 0x57;
-        else if (color >= 0x30 && color <= 0x39)
-            color -= 0x30;
-        else if (color == 0x6e)
-            color = 16;
-        else return;
-
-        #ifndef _WIN32
-        fputs(colors[color], stdout);
-        #else
-        SetConsoleTextAttribute(console_handle, color);
-    #endif
-    }
-}
-
 // this hacky mess might use some optimizing
 void packet_print(rc_packet *packet)
 {
@@ -608,7 +564,6 @@ void packet_print(rc_packet *packet)
             colors_detected = true;
             i += 2;
             if (flag_disable_colors == 0) {
-                //print_color(data[i]);
                 set_color(data[i]);
             }
             continue;
