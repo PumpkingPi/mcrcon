@@ -113,7 +113,8 @@ static int  global_rsock;
 
 #ifdef _WIN32
 // console coloring on windows
-HANDLE console_handle;
+HANDLE console_output_handle;
+HANDLE console_input_handle;
 
 // console code pages
 UINT old_output_codepage;
@@ -130,9 +131,6 @@ void exit_proc(void)
     // Restore previous code pages
     SetConsoleOutputCP(old_output_codepage);
     SetConsoleCP(old_input_codepage);
-
-    // Set back to binary mode
-    _setmode(_fileno(stdin), _O_BINARY);
     #endif
 }
 
@@ -230,9 +228,16 @@ int main(int argc, char *argv[])
 
     #ifdef _WIN32
     net_init_WSA();
-    console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
-    if (console_handle == INVALID_HANDLE_VALUE)
-        console_handle = NULL;
+
+    console_input_handle = GetStdHandle(STD_INPUT_HANDLE);
+    if (console_input_handle == INVALID_HANDLE_VALUE || console_input_handle == NULL) {
+        log_error("Error: Failed to get console input handle.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    console_output_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (console_output_handle == INVALID_HANDLE_VALUE)
+        console_output_handle = NULL;
 
     // Set the output and input code pages to utf-8
     old_output_codepage = GetConsoleOutputCP();
@@ -240,13 +245,6 @@ int main(int argc, char *argv[])
 
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
-
-    // Set the file translation mode to UTF16
-    _setmode(_fileno(stdin), _O_U16TEXT);
-
-    // Set stdout/stderr to binary mode to avoid newline translation confusion
-    _setmode(_fileno(stdout), _O_BINARY);
-    _setmode(_fileno(stderr), _O_BINARY);
     #endif
 
     // open socket
@@ -470,7 +468,6 @@ void set_color(int c)
     c = tolower(c);
 
     #ifdef _WIN32
-
     // Map color Minecraft color codes to WinAPI colors
     if (c >= '0' && c <= '9') {
         c -= '0';
@@ -480,14 +477,9 @@ void set_color(int c)
     }
     else return;
 
-    SetConsoleTextAttribute(console_handle, c);
-
+    SetConsoleTextAttribute(console_output_handle, c);
     #else
 
-    /* NOTE: Using "bold" for bright colors for now. This is not correct exactly
-     *       because it resets other formattings and must be reseted manually.
-     *       This should match Bukkit/Spigot server console output though
-     */
     const char *ansi_escape;
     switch (c)
     {
@@ -527,7 +519,7 @@ void packet_print(rc_packet *packet)
     uint8_t *data = packet->data;
     int i;
 
-    if (flag_raw_output == 1) {
+    if (flag_raw_output == 1 || global_valve_protocol == true) {
         fputs((char *) data, stdout);
         return;
     }
@@ -547,7 +539,7 @@ void packet_print(rc_packet *packet)
 
     #ifdef _WIN32
     CONSOLE_SCREEN_BUFFER_INFO console_info;
-    if (GetConsoleScreenBufferInfo(console_handle, &console_info) != 0) {
+    if (GetConsoleScreenBufferInfo(console_output_handle, &console_info) != 0) {
         default_color = console_info.wAttributes + 0x30;
     }
     else default_color = 0x37;
@@ -564,6 +556,7 @@ void packet_print(rc_packet *packet)
             colors_detected = true;
             i += 2;
             if (flag_disable_colors == 0) {
+                set_color(default_color);
                 set_color(data[i]);
             }
             continue;
@@ -579,12 +572,6 @@ void packet_print(rc_packet *packet)
     }
 
     set_color(default_color); // reset color
-
-    // print newline if string has no newline
-    // if (data[i - 1] != '\n') {
-    //      putchar('\n');
-    // }
-
     fflush(stdout);
 }
 
@@ -656,8 +643,7 @@ int rcon_command(int sock, char *command)
         return 0;
     }
 
-    // Workaround to handle valve multipacket responses
-    // This one does not require using select()
+    // workaround to handle valve style multipacket responses
     packet = packet_build(0xBADA55, 0xBADA55, "");
     if (packet == NULL) {
         log_error("Error: packet build() failed!\n");
@@ -679,6 +665,7 @@ int rcon_command(int sock, char *command)
     timeout.tv_sec = 5;
     timeout.tv_usec = 0;
 
+    char last_character = '\0';
     int incoming = 0;
 
     do {
@@ -696,13 +683,18 @@ int rcon_command(int sock, char *command)
 
         if (packet->id == 0xBADA55) {
             // Print newline after receiving multipacket guard packet
-            putchar('\n');
+            if (last_character != '\n') {
+                putchar('\n');
+                fflush(stdout);
+            }
             break;
         }
 
         if (flag_silent_mode == false) {
-            if (packet->size > 10)
+            if (packet->size > 10) {
                 packet_print(packet);
+                last_character = packet->data[packet->size - 11];
+            }
         }
 
         int result = select(sock + 1, &read_fds, NULL, NULL, &timeout);
@@ -792,28 +784,42 @@ int run_terminal_mode(int sock)
 }
 
 #ifdef _WIN32
-char *utf8_getline(char *buf, int size, FILE *stream)
+#define WCHAR_BUFFER_SIZE (MAX_COMMAND_LENGTH / 3)
+char *windows_getline(char *buf, int size)
 {
-    wchar_t in[MAX_COMMAND_LENGTH] = {0};
+    WCHAR wide_buffer[WCHAR_BUFFER_SIZE];
+    DWORD chars_read = 0;
 
-    wchar_t *result = fgetws(in, MAX_COMMAND_LENGTH, stream);
-    if (result == NULL) {
+    if (!ReadConsoleW(console_input_handle, wide_buffer, WCHAR_BUFFER_SIZE - 1, &chars_read, NULL))
         return NULL;
+
+    // Check if we hit buffer limit (no newline = more data waiting)
+    int has_newline = (chars_read > 0 && wide_buffer[chars_read - 1] == L'\n');
+    if (!has_newline) {
+        // Buffer was full, drain the rest until newline
+        WCHAR drain_buffer[256];
+        DWORD drain_read;
+        do {
+            if (!ReadConsoleW(console_input_handle, drain_buffer, 255, &drain_read, NULL))
+                break;
+        } while (drain_read > 0 && drain_buffer[drain_read - 1] != L'\n');
     }
 
-    size_t length = wcslen(in);
-    if (length > 0 && in[length - 1] == L'\n') {
-        in[length - 1] = L'\0';
+    if (chars_read > 0 && wide_buffer[chars_read - 1] == L'\n') {
+        chars_read--;
+        if (chars_read > 0 && wide_buffer[chars_read - 1] == L'\r')
+            chars_read--;
     }
+    wide_buffer[chars_read] = L'\0';
 
-    // Calculate UTF-8 buffer size
-    int required_size = WideCharToMultiByte(CP_UTF8, 0, in, -1, NULL, 0, NULL, NULL);
-    if (required_size > size || required_size == 0) {
+    int bytes_needed = WideCharToMultiByte(CP_UTF8, 0, wide_buffer, -1, NULL, 0, NULL, NULL);
+    if (bytes_needed <= 0 || bytes_needed > size) {
         log_error("Widechar to UTF-8 conversion failed.\n");
         exit(EXIT_FAILURE);
     }
 
-    if (WideCharToMultiByte(CP_UTF8, 0, in, -1, buf, size, NULL, NULL) == 0) {
+    int result = WideCharToMultiByte(CP_UTF8, 0, wide_buffer, -1, buf, size, NULL, NULL);
+    if (result == 0) {
         log_error("Widechar to UTF-8 conversion failed.\n");
         exit(EXIT_FAILURE);
     }
@@ -826,7 +832,7 @@ char *utf8_getline(char *buf, int size, FILE *stream)
 int get_line(char *buffer, int bsize)
 {
     #ifdef _WIN32
-    char *ret = utf8_getline(buffer, bsize, stdin);
+    char *ret = windows_getline(buffer, bsize);
     #else
     char *ret = fgets(buffer, bsize, stdin);
     #endif
