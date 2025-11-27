@@ -401,7 +401,8 @@ int net_connect(const char *host, const char *port)
 bool net_send_packet(int sd, rc_packet *packet)
 {
     size_t sent = 0;
-    size_t size = (size_t) packet->size + (ssize_t) sizeof(int32_t);
+    size_t packet_size = bswap32(packet->size);
+    size_t size = packet_size + (ssize_t) sizeof(int32_t);
     size_t left = size;
 
     char *p = (char *) packet;
