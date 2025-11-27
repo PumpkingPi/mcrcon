@@ -150,17 +150,17 @@ unsigned int mcrcon_parse_seconds(char *str)
     long result = strtol(str, &end, 10);
 
     if (errno != 0) {
-        log_error("-w invalid value.\nerror %d: %s\n", errno, strerror(errno));
+       fprintf(stderr, "-w invalid value.\nerror %d: %s\n", errno, strerror(errno));
         exit(EXIT_FAILURE);
     }
 
     if (end == str) {
-        log_error("-w invalid value (not a number?)\n");
+       fprintf(stderr, "-w invalid value (not a number?)\n");
         exit(EXIT_FAILURE);
     }
 
     if (result <= 0 || result > MAX_WAIT_TIME) {
-        log_error("-w value out of range.\nAcceptable value is 1 - %d (seconds).\n", MAX_WAIT_TIME);
+       fprintf(stderr, "-w value out of range.\nAcceptable value is 1 - %d (seconds).\n", MAX_WAIT_TIME);
         exit(EXIT_FAILURE);
     }
 
@@ -231,7 +231,7 @@ int main(int argc, char *argv[])
 
     console_input_handle = GetStdHandle(STD_INPUT_HANDLE);
     if (console_input_handle == INVALID_HANDLE_VALUE || console_input_handle == NULL) {
-        log_error("Error: Failed to get console input handle.\n");
+       fprintf(stderr, "Error: Failed to get console input handle.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -258,7 +258,7 @@ int main(int argc, char *argv[])
         else exit_code = run_commands(argc, argv);
     }
     else { // auth failed
-        log_error("Authentication failed!\n");
+       fprintf(stderr, "Authentication failed!\n");
         exit_code = EXIT_FAILURE;
     }
 
@@ -313,7 +313,7 @@ void net_init_WSA(void)
 
     int err = WSAStartup(version, &wsadata);
     if (err != 0) {
-        log_error("WSAStartup failed. Error: %d.\n", err);
+       fprintf(stderr, "WSAStartup failed. Error: %d.\n", err);
         exit(EXIT_FAILURE);
     }
 }
@@ -350,11 +350,11 @@ int net_connect(const char *host, const char *port)
 
     int ret = getaddrinfo(host, port, &hints, &server_info);
     if (ret != 0) {
-        log_error("Name resolution failed.\n");
+       fprintf(stderr, "Name resolution failed.\n");
         #ifdef _WIN32
-        log_error("Error %d: %s", ret, gai_strerror(ret));
+       fprintf(stderr, "Error %d: %s", ret, gai_strerror(ret));
         #else
-        log_error("Error %d: %s\n", ret, gai_strerror(ret));
+       fprintf(stderr, "Error %d: %s\n", ret, gai_strerror(ret));
         #endif
 
         exit(EXIT_FAILURE);
@@ -378,9 +378,9 @@ int net_connect(const char *host, const char *port)
 
     if (p == NULL) {
         /* TODO (Tiiffi): Check why windows does not report errors */
-        log_error("Connection failed.\n");
+       fprintf(stderr, "Connection failed.\n");
         #ifndef _WIN32
-        log_error("Error %d: %s\n", errno, strerror(errno));
+       fprintf(stderr, "Error %d: %s\n", errno, strerror(errno));
         #endif
 
         freeaddrinfo(server_info);
@@ -422,19 +422,22 @@ rc_packet *net_recv_packet(int sd)
     ssize_t ret = recv(sd, (char *) &psize, sizeof(psize), 0);
 
     if (ret == 0) {
-        log_error("Connection lost.\n");
+       fprintf(stderr, "Connection lost.\n");
         global_connection_alive = 0;
         return NULL;
     }
 
+    // TODO: Handle -1 return value which indicates error
+    //       Data may also be fragmented so it's not guaranteed that
+    //       we receive 4 bytes in one recv() call
     if (ret != sizeof(psize)) {
-        log_error("Error: recv() failed.\n");
+       fprintf(stderr, "Error: recv() failed.");
         global_connection_alive = 0;
         return NULL;
     }
 
     if (psize < MIN_PACKET_SIZE || psize > MAX_PACKET_SIZE) {
-        log_error("Error: Invalid packet size (%d).\n", psize);
+       fprintf(stderr, "Error: Invalid packet size (%d).\n", psize);
         global_connection_alive = 0;
         return NULL;
     }
@@ -587,6 +590,7 @@ rc_packet *packet_build(int id, int cmd, char s[static 1])
     int len = strlen(s);
     if (len > MAX_COMMAND_LENGTH) {
         log_error("Warning: Command string too long (%d). Maximum allowed: %d.\n", len, MAX_COMMAND_LENGTH);
+       fprintf(stderr, "Warning: Command string too long (%zu). Maximum allowed: %d.\n", len, MAX_COMMAND_LENGTH);
         return NULL;
     }
 
@@ -634,24 +638,24 @@ int rcon_command(int sock, char *command)
 
     rc_packet *packet = packet_build(RCON_PID, RCON_EXEC_COMMAND, command);
     if (packet == NULL) {
-        log_error("Error: packet build() failed!\n");
+       fprintf(stderr, "Error: packet build() failed!\n");
         return 0;
     }
 
     if (!net_send_packet(sock, packet)) {
-        log_error("Error: net_send_packet() failed!\n");
+       fprintf(stderr, "Error: net_send_packet() failed!\n");
         return 0;
     }
 
     // workaround to handle valve style multipacket responses
     packet = packet_build(0xBADA55, 0xBADA55, "");
     if (packet == NULL) {
-        log_error("Error: packet build() failed!\n");
+       fprintf(stderr, "Error: packet build() failed!\n");
         return 0;
     }
 
     if (!net_send_packet(sock, packet)) {
-        log_error("Error: net_send_packet() failed!\n");
+       fprintf(stderr, "Error: net_send_packet() failed!\n");
         return 0;
     }
 
@@ -665,19 +669,19 @@ int rcon_command(int sock, char *command)
     timeout.tv_sec = 5;
     timeout.tv_usec = 0;
 
-    char last_character = '\0';
+    uint8_t last_character = '\0';
     int incoming = 0;
 
     do {
         packet = net_recv_packet(sock);
         if (packet == NULL) {
-            log_error("Error: net_recv_packet() failed!\n");
+           fprintf(stderr, "Error: net_recv_packet() failed!\n");
             return 0;
         }
 
         // Check for packet id and multipacket guard id
         if (packet->id != RCON_PID && packet->id != 0xBADA55) {
-            log_error("Error: invalid packet id!\n");
+           fprintf(stderr, "Error: invalid packet id!\n");
             return 0;
         }
 
@@ -699,7 +703,7 @@ int rcon_command(int sock, char *command)
 
         int result = select(sock + 1, &read_fds, NULL, NULL, &timeout);
         if (result == -1) {
-            log_error("Error: select() failed!\n");
+           fprintf(stderr, "Error: select() failed!\n");
             return 0;
         }
 
@@ -814,13 +818,13 @@ char *windows_getline(char *buf, int size)
 
     int bytes_needed = WideCharToMultiByte(CP_UTF8, 0, wide_buffer, -1, NULL, 0, NULL, NULL);
     if (bytes_needed <= 0 || bytes_needed > size) {
-        log_error("Widechar to UTF-8 conversion failed.\n");
+       fprintf(stderr, "Widechar to UTF-8 conversion failed.\n");
         exit(EXIT_FAILURE);
     }
 
     int result = WideCharToMultiByte(CP_UTF8, 0, wide_buffer, -1, buf, size, NULL, NULL);
     if (result == 0) {
-        log_error("Widechar to UTF-8 conversion failed.\n");
+       fprintf(stderr, "Widechar to UTF-8 conversion failed.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -839,7 +843,7 @@ int get_line(char *buffer, int bsize)
 
     if (ret == NULL) {
         if (ferror(stdin)) {
-            log_error("Error %d: %s\n", errno, strerror(errno));
+           fprintf(stderr, "Error %d: %s\n", errno, strerror(errno));
             exit(EXIT_FAILURE);
         }
         // EOF
