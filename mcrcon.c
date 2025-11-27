@@ -84,6 +84,7 @@ void        net_init_WSA(void);
 void        net_close(int sd);
 int         net_connect(const char *host, const char *port);
 bool        net_send_packet(int sd, rc_packet *packet);
+ssize_t     net_recv_all(int sockfd, void *buf, size_t len);
 rc_packet*  net_recv_packet(int sd);
 
 // Misc stuff
@@ -422,6 +423,18 @@ bool net_send_packet(int sd, rc_packet *packet)
     return true;
 }
 
+ssize_t net_recv_all(int sockfd, void *buf, size_t len)
+{
+    size_t total = 0;
+
+    while (total < len) {
+        ssize_t n = recv(sockfd, (char*) buf + total, len - total, 0);
+        if (n <= 0) return n;  // error or closed
+        total += n;
+    }
+
+    return total;
+}
 
 // TODO: Fix the wonky behaviour when server quit/exit/stop/close
 //       command is issued. Client should close gracefully without errors.
