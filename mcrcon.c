@@ -151,16 +151,19 @@ unsigned int mcrcon_parse_seconds(char *str)
 
     if (errno != 0) {
        fprintf(stderr, "-w invalid value.\nerror %d: %s\n", errno, strerror(errno));
+        fprintf(stderr, "-w invalid value.\nerror %d: %s\n", errno, strerror(errno));
         exit(EXIT_FAILURE);
     }
 
     if (end == str) {
        fprintf(stderr, "-w invalid value (not a number?)\n");
+        fprintf(stderr, "-w invalid value (not a number?)\n");
         exit(EXIT_FAILURE);
     }
 
     if (result <= 0 || result > MAX_WAIT_TIME) {
        fprintf(stderr, "-w value out of range.\nAcceptable value is 1 - %d (seconds).\n", MAX_WAIT_TIME);
+        fprintf(stderr, "-w value out of range.\nAcceptable value is 1 - %d (seconds).\n", MAX_WAIT_TIME);
         exit(EXIT_FAILURE);
     }
 
@@ -232,6 +235,7 @@ int main(int argc, char *argv[])
     console_input_handle = GetStdHandle(STD_INPUT_HANDLE);
     if (console_input_handle == INVALID_HANDLE_VALUE || console_input_handle == NULL) {
        fprintf(stderr, "Error: Failed to get console input handle.\n");
+        fprintf(stderr, "Error: Failed to get console input handle.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -259,6 +263,7 @@ int main(int argc, char *argv[])
     }
     else { // auth failed
        fprintf(stderr, "Authentication failed!\n");
+        fprintf(stderr, "Authentication failed!\n");
         exit_code = EXIT_FAILURE;
     }
 
@@ -314,6 +319,7 @@ void net_init_WSA(void)
     int err = WSAStartup(version, &wsadata);
     if (err != 0) {
        fprintf(stderr, "WSAStartup failed. Error: %d.\n", err);
+        fprintf(stderr, "WSAStartup failed. Error: %d.\n", err);
         exit(EXIT_FAILURE);
     }
 }
@@ -351,10 +357,13 @@ int net_connect(const char *host, const char *port)
     int ret = getaddrinfo(host, port, &hints, &server_info);
     if (ret != 0) {
        fprintf(stderr, "Name resolution failed.\n");
+        fprintf(stderr, "Name resolution failed.\n");
         #ifdef _WIN32
        fprintf(stderr, "Error %d: %s", ret, gai_strerror(ret));
+        fprintf(stderr, "Error %d: %s", ret, gai_strerror(ret));
         #else
        fprintf(stderr, "Error %d: %s\n", ret, gai_strerror(ret));
+        fprintf(stderr, "Error %d: %s\n", ret, gai_strerror(ret));
         #endif
 
         exit(EXIT_FAILURE);
@@ -379,8 +388,10 @@ int net_connect(const char *host, const char *port)
     if (p == NULL) {
         /* TODO (Tiiffi): Check why windows does not report errors */
        fprintf(stderr, "Connection failed.\n");
+        fprintf(stderr, "Connection failed.\n");
         #ifndef _WIN32
        fprintf(stderr, "Error %d: %s\n", errno, strerror(errno));
+        fprintf(stderr, "Error %d: %s\n", errno, strerror(errno));
         #endif
 
         freeaddrinfo(server_info);
@@ -423,6 +434,7 @@ rc_packet *net_recv_packet(int sd)
 
     if (ret == 0) {
        fprintf(stderr, "Connection lost.\n");
+        fprintf(stderr, "Connection lost.\n");
         global_connection_alive = 0;
         return NULL;
     }
@@ -432,12 +444,14 @@ rc_packet *net_recv_packet(int sd)
     //       we receive 4 bytes in one recv() call
     if (ret != sizeof(psize)) {
        fprintf(stderr, "Error: recv() failed.");
+        fprintf(stderr, "Error: recv() failed.");
         global_connection_alive = 0;
         return NULL;
     }
 
     if (psize < MIN_PACKET_SIZE || psize > MAX_PACKET_SIZE) {
        fprintf(stderr, "Error: Invalid packet size (%d).\n", psize);
+        fprintf(stderr, "Error: Invalid packet size (%d).\n", psize);
         global_connection_alive = 0;
         return NULL;
     }
@@ -639,11 +653,13 @@ int rcon_command(int sock, char *command)
     rc_packet *packet = packet_build(RCON_PID, RCON_EXEC_COMMAND, command);
     if (packet == NULL) {
        fprintf(stderr, "Error: packet build() failed!\n");
+        fprintf(stderr, "Error: packet build() failed!\n");
         return 0;
     }
 
     if (!net_send_packet(sock, packet)) {
        fprintf(stderr, "Error: net_send_packet() failed!\n");
+        fprintf(stderr, "Error: net_send_packet() failed!\n");
         return 0;
     }
 
@@ -651,11 +667,13 @@ int rcon_command(int sock, char *command)
     packet = packet_build(0xBADA55, 0xBADA55, "");
     if (packet == NULL) {
        fprintf(stderr, "Error: packet build() failed!\n");
+        fprintf(stderr, "Error: packet build() failed!\n");
         return 0;
     }
 
     if (!net_send_packet(sock, packet)) {
        fprintf(stderr, "Error: net_send_packet() failed!\n");
+        fprintf(stderr, "Error: net_send_packet() failed!\n");
         return 0;
     }
 
@@ -676,12 +694,14 @@ int rcon_command(int sock, char *command)
         packet = net_recv_packet(sock);
         if (packet == NULL) {
            fprintf(stderr, "Error: net_recv_packet() failed!\n");
+            fprintf(stderr, "Error: net_recv_packet() failed!\n");
             return 0;
         }
 
         // Check for packet id and multipacket guard id
         if (packet->id != RCON_PID && packet->id != 0xBADA55) {
            fprintf(stderr, "Error: invalid packet id!\n");
+            fprintf(stderr, "Error: invalid packet id!\n");
             return 0;
         }
 
@@ -704,6 +724,7 @@ int rcon_command(int sock, char *command)
         int result = select(sock + 1, &read_fds, NULL, NULL, &timeout);
         if (result == -1) {
            fprintf(stderr, "Error: select() failed!\n");
+            fprintf(stderr, "Error: select() failed!\n");
             return 0;
         }
 
@@ -819,12 +840,14 @@ char *windows_getline(char *buf, int size)
     int bytes_needed = WideCharToMultiByte(CP_UTF8, 0, wide_buffer, -1, NULL, 0, NULL, NULL);
     if (bytes_needed <= 0 || bytes_needed > size) {
        fprintf(stderr, "Widechar to UTF-8 conversion failed.\n");
+        fprintf(stderr, "Widechar to UTF-8 conversion failed.\n");
         exit(EXIT_FAILURE);
     }
 
     int result = WideCharToMultiByte(CP_UTF8, 0, wide_buffer, -1, buf, size, NULL, NULL);
     if (result == 0) {
        fprintf(stderr, "Widechar to UTF-8 conversion failed.\n");
+        fprintf(stderr, "Widechar to UTF-8 conversion failed.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -844,6 +867,7 @@ int get_line(char *buffer, int bsize)
     if (ret == NULL) {
         if (ferror(stdin)) {
            fprintf(stderr, "Error %d: %s\n", errno, strerror(errno));
+            fprintf(stderr, "Error %d: %s\n", errno, strerror(errno));
             exit(EXIT_FAILURE);
         }
         // EOF
