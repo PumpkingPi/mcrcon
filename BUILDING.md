@@ -13,7 +13,7 @@ Building and installing
 
 ### Compiling
 
-    cc -std=gnu99 -Wpedantic -Wall -Wextra -Wno-gnu-zero-variadic-macro-arguments -O2 -o mcrcon mcrcon.c
+    cc -std=gnu99 -Wpedantic -Wall -Wextra -O2 -o mcrcon mcrcon.c
     
 >[!NOTE]
 >If you are compiling on Windows remember to link with winsock by adding `-lws2_32` to your compiler command line.
