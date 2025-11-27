@@ -1,16 +1,11 @@
-# if you want to cross compile:
-#   export PATH=$PATH:/path/to/compiler/bin
-#   export CROSS_COMPILE=arm-none-linux-gnueabi-
-#   make
-#
-# Windows cross compile:
-#   x86_64-w64-mingw32-gcc -std=gnu99 -Wall -Wextra -Wpedantic -O2 -fstack-protector-all -o mcrcon.exe mcrcon.c -lws2_32
+# To crosscompile for Windows:
+#   CC=x86_64-w64-mingw32-gcc OS=Windows_NT make
 
 EXENAME = mcrcon
 PREFIX ?= /usr/local
 
 INSTALL = install
-LINKER =
+LINKER ?=
 RM = rm -v -f
 
 CC ?= gcc
@@ -18,16 +13,17 @@ CFLAGS = -std=gnu99 -Wall -Wextra -Wpedantic -O2
 EXTRAFLAGS ?= -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE -pie
 
 ifeq ($(OS), Windows_NT)
-	LINKER = -lws2_32
+	LINKER = -lws2_32 -static
 	EXENAME = mcrcon.exe
 	RM = cmd /C del /F
+	EXTRAFLAGS = -Wl,--dynamicbase -Wl,--nxcompat -fstack-protector-strong
 endif
 
 .PHONY: all
 all: $(EXENAME)
 
 $(EXENAME): mcrcon.c
-	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(EXTRAFLAGS) -o $@ $< $(LINKER)
+	$(CC) $(CFLAGS) $(EXTRAFLAGS) -o $@ $< $(LINKER)
 
 ifneq ($(OS), Windows_NT)
 .PHONY: install
