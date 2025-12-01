@@ -684,6 +684,7 @@ int rcon_command(int sock, char *command)
     // Set 5 second timeout
     struct timeval timeout = {0};
     timeout.tv_sec = 5;
+    timeout.tv_sec = 2;
     timeout.tv_usec = 0;
 
     uint8_t last_character = '\0';
