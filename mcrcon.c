@@ -116,6 +116,7 @@ static unsigned int flag_wait_seconds = 0;
 static int          global_connection_alive = 1;
 static bool         global_valve_protocol = false;
 static bool         global_minecraft_newline_fix = false;
+static bool         global_is_palworld_server = false;
 static int          global_rsock;
 
 #ifdef _WIN32
@@ -644,8 +645,34 @@ bool rcon_auth(int sock, char *passwd)
         goto receive;
     }
 
+    if (packet->id == -1)
+        return false;
+
+    // Quirk: check if server is Palworld server
+    packet = packet_build(RCON_PID, 2, "Info");
+    if (packet == NULL) {
+        fprintf(stderr, "Error: packet build() failed!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (!net_send_packet(sock, packet)) {
+        fprintf(stderr, "Error: net_send_packet() failed!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    packet = net_recv_packet(sock);
+    if (packet == NULL) {
+        fprintf(stderr, "Error: net_recv_packet() failed!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Palworld response to "Info" command:
+    //  "Welcome to Pal Server[v0.6.9.82048] Default Palworld Server"
+    if (strstr((char *) packet->data, "Pal Server["))
+        global_is_palworld_server = true;
+
     // return true if authentication OK
-    return packet->id == -1 ? false : true;
+    return true;
 }
 
 int rcon_command(int sock, char *command)
@@ -664,16 +691,20 @@ int rcon_command(int sock, char *command)
         return 0;
     }
 
-    // workaround to handle valve style multipacket responses
-    packet = packet_build(0xBADA55, 0xBADA55, "");
-    if (packet == NULL) {
-        fprintf(stderr, "Error: packet build() failed!\n");
-        return 0;
-    }
+    // Workaround to handle valve style multipacket responses
+    // Factorio is very touchy with command type so we use 2 for now
+    // We also send payload of '\04' (end transmission) to force reply from Factorio
+    if (global_is_palworld_server == false) {
+        packet = packet_build(0xBADA55, 2, "\04");
+        if (packet == NULL) {
+            fprintf(stderr, "Error: packet build() failed!\n");
+            return 0;
+        }
 
-    if (!net_send_packet(sock, packet)) {
-        fprintf(stderr, "Error: net_send_packet() failed!\n");
-        return 0;
+        if (!net_send_packet(sock, packet)) {
+            fprintf(stderr, "Error: net_send_packet() failed!\n");
+            return 0;
+        }
     }
 
     // initialize stuff for select()
@@ -681,13 +712,13 @@ int rcon_command(int sock, char *command)
     FD_ZERO(&read_fds);
     FD_SET(sock, &read_fds);
 
-    // Set 5 second timeout
+    // Set 2 second timeout
     struct timeval timeout = {0};
-    timeout.tv_sec = 5;
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
 
     uint8_t last_character = '\0';
+    int32_t last_packet_size = 0;
     int incoming = 0;
 
     do {
@@ -697,15 +728,24 @@ int rcon_command(int sock, char *command)
             return 0;
         }
 
+        // This is RUST server hack. Rust sends these cmd (4) "echo" packets
+        // Not sure what is the purpose of the packets so ignoring for now
+        if (packet->cmd == 4)
+            goto select;
+
         // Check for packet id and multipacket guard id
-        if (packet->id != RCON_PID && packet->id != 0xBADA55) {
+        // RUST server guard packet seems to have packet id -1 (0xFFFFFFFF) so allow it
+        // Palworld doesn't echo RCON_PID pack, it uses 0 for everything
+        if (packet->id != RCON_PID && packet->id != 0xBADA55 && packet->id != -1 && packet->id != 0) {
             fprintf(stderr, "Error: invalid packet id!\n");
             return 0;
         }
 
-        if (packet->id == 0xBADA55) {
+        // RUST guard packet has id -1 (0xFFFFFFFF). Not 100% if this is "guard packet" though.
+        if (packet->id == 0xBADA55 || packet->id == -1) {
             // Print newline after receiving multipacket guard packet
-            if (last_character != '\n') {
+            // last_packet_size is to prevent extra newline if last payload packet was empty
+            if (last_character != '\n' && last_packet_size != 10) {
                 putchar('\n');
                 fflush(stdout);
             }
@@ -718,6 +758,12 @@ int rcon_command(int sock, char *command)
                 last_character = packet->data[packet->size - 11];
             }
         }
+
+        if (global_is_palworld_server)
+            return 1;
+
+select:
+        last_packet_size = packet->size;
 
         int result = select(sock + 1, &read_fds, NULL, NULL, &timeout);
         if (result == -1) {
