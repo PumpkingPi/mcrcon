@@ -387,7 +387,7 @@ int net_send(int sd, const uint8_t *buff, size_t size)
 			return -1;
 
 		sent += result;
-		left -= sent;
+		left -= result;
 	}
 
 	return 0;
